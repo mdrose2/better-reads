@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'books.apps.BooksConfig',
     'reviews.apps.ReviewsConfig',
     'pages.apps.PagesConfig',
+    'health.apps.HealthConfig',
 ]
 
 MIDDLEWARE = [
