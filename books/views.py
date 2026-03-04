@@ -10,6 +10,7 @@ This module contains all view logic for book-related functionality including:
 """
 
 import logging
+import traceback
 from django.views.generic import ListView, DetailView, TemplateView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
@@ -77,91 +78,65 @@ class BookDetailView(DetailView):
             return redirect('books:list')
         return super().get(request, *args, **kwargs)
 
-
 class BookSearchView(TemplateView):
-    """
-    Search for books using the Google Books API.
-
-    Features:
-    - Displays search form and results
-    - Checks local database for existing books
-    - Handles API rate limits and errors with exponential backoff retry logic
-    - User-friendly error messages for API issues
-
-    Template: books/book_search.html
-    Context:
-        - 'query': Current search query
-        - 'results': Parsed book data from Google Books API
-    """
     template_name = 'books/book_search.html'
 
     def get_context_data(self, **kwargs):
-        """Add search results to context with comprehensive error handling."""
         context = super().get_context_data(**kwargs)
         query = self.request.GET.get('q', '').strip()
 
         if query:
-            api = GoogleBooksAPI()
-
+            logger.info(f"Search initiated for query: {query}")
+            
             try:
-                # Attempt to search with retry logic built into utils
+                api = GoogleBooksAPI()
+                
+                # Log API key status (without exposing the key)
+                logger.info(f"API Key present: {bool(api.api_key)}")
+                
+                # Attempt the search
                 results = api.search_books(query)
-
+                logger.info(f"Raw results type: {type(results)}")
+                
                 if results is None:
-                    # API error but not fatal - show friendly message
+                    logger.error("API returned None")
                     messages.warning(
                         self.request,
-                        'The book search service is temporarily busy. '
-                        'Please try again in a few moments.'
+                        'The book search service is temporarily unavailable.'
                     )
                     results = []
-
-                # Parse results and check against local database
+                
+                # Parse results
                 books_data = []
                 for item in results:
-                    parsed = api.parse_book_data(item)
-
-                    # Check if book exists in local database
-                    if parsed['google_books_id']:
-                        existing = Book.objects.filter(
-                            google_books_id=parsed['google_books_id']
-                        ).first()
-                        parsed['in_database'] = existing is not None
-                        parsed['database_id'] = existing.id if existing else None
-
-                    books_data.append(parsed)
-
+                    try:
+                        parsed = api.parse_book_data(item)
+                        if parsed['google_books_id']:
+                            existing = Book.objects.filter(
+                                google_books_id=parsed['google_books_id']
+                            ).first()
+                            parsed['in_database'] = existing is not None
+                            parsed['database_id'] = existing.id if existing else None
+                        books_data.append(parsed)
+                    except Exception as e:
+                        logger.error(f"Error parsing book item: {e}")
+                        continue
+                
+                logger.info(f"Successfully parsed {len(books_data)} books")
                 context['results'] = books_data
 
-            except requests.exceptions.HTTPError as e:
-                # Handle specific HTTP errors
-                if e.response.status_code == 429:
-                    messages.error(
-                        self.request,
-                        'The book search service is currently overloaded. '
-                        'Please wait a few minutes and try again.'
-                    )
-                else:
-                    messages.error(
-                        self.request,
-                        'Unable to search books right now. Please try again later.'
-                    )
-                logger.error(f"Search failed with HTTP error: {e}")
-                context['results'] = []
-
             except Exception as e:
-                # Catch-all for unexpected errors
+                logger.error(f"Search failed with exception: {str(e)}")
+                logger.error(traceback.format_exc())
                 messages.error(
                     self.request,
-                    'An unexpected error occurred. Please try again later.'
+                    'An error occurred while searching. Please try again later.'
                 )
-                logger.error(f"Search failed with unexpected error: {e}")
                 context['results'] = []
 
             context['query'] = query
 
         return context
-
 
 # ==============================================================================
 # GOOGLE BOOKS API IMPORT VIEWS

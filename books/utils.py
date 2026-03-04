@@ -11,7 +11,6 @@ import random
 import logging
 from django.conf import settings
 from datetime import datetime, timedelta
-from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +40,14 @@ class GoogleBooksAPI:
     def __init__(self):
         """Initialize the API client with the configured API key."""
         self.api_key = settings.GOOGLE_BOOKS_API_KEY
+        
+        # Enhanced logging for debugging API key issues
         if not self.api_key:
-            logger.warning("Google Books API key is not configured")
+            logger.error("❌ Google Books API key is not configured in settings")
+            logger.error("Check that GOOGLE_BOOKS_API_KEY is set in environment variables")
+        else:
+            # Log first few characters to confirm key is loaded (without exposing full key)
+            logger.info(f"✅ Google Books API key loaded (starts with: {self.api_key[:5]}...)")
     
     def search_books(self, query, max_results=20, max_retries=3):
         """
@@ -63,19 +68,23 @@ class GoogleBooksAPI:
             logger.warning("Empty search query provided")
             return []
         
+        logger.info(f"🔍 Searching books with query: '{query}'")
+        
         # Check cache first (10-minute cache to reduce API calls)
         cache_key = f"{query}_{max_results}"
         if cache_key in _search_cache:
             cache_age = datetime.now() - _cache_time.get(cache_key, datetime.now())
             if cache_age < timedelta(minutes=10):
-                logger.info(f"Returning cached results for: {query}")
+                logger.info(f"📦 Returning cached results for: '{query}'")
                 return _search_cache[cache_key]
         
         # Implement exponential backoff retry logic
         for attempt in range(max_retries):
             try:
                 # Add jitter to avoid synchronized retries
-                time.sleep(random.uniform(0.5, 1.5) * (attempt + 1))
+                sleep_time = random.uniform(0.5, 1.5) * (attempt + 1)
+                logger.debug(f"Attempt {attempt + 1}/{max_retries} - waiting {sleep_time:.2f}s")
+                time.sleep(sleep_time)
                 
                 results = self._make_api_call(query, max_results)
                 
@@ -83,40 +92,52 @@ class GoogleBooksAPI:
                 _search_cache[cache_key] = results
                 _cache_time[cache_key] = datetime.now()
                 
+                logger.info(f"✅ Search successful - found {len(results)} results")
                 return results
                 
             except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 429:
+                status_code = e.response.status_code if hasattr(e, 'response') else 'unknown'
+                
+                if status_code == 429:
+                    logger.warning(f"⚠️ Rate limited (attempt {attempt + 1}/{max_retries})")
+                    
                     if attempt < max_retries - 1:
                         # Exponential backoff: wait longer between each retry
                         wait_time = (2 ** attempt) + random.uniform(0, 1)
-                        logger.warning(
-                            f"Rate limited (attempt {attempt + 1}). "
-                            f"Waiting {wait_time:.1f}s..."
-                        )
+                        logger.info(f"⏳ Waiting {wait_time:.1f}s before retry...")
                         time.sleep(wait_time)
                     else:
-                        logger.error("Max retries exceeded for rate limit")
+                        logger.error("❌ Max retries exceeded for rate limit")
                         return []
                 else:
-                    # Re-raise other HTTP errors
-                    logger.error(f"HTTP error from Google Books API: {e}")
+                    # Log other HTTP errors
+                    logger.error(f"❌ HTTP error {status_code} from Google Books API: {e}")
+                    
+                    # Provide specific guidance based on status code
+                    if status_code == 403:
+                        logger.error("🔑 API key may be invalid or quota exceeded")
+                    elif status_code == 404:
+                        logger.error("🔍 API endpoint not found")
                     raise
                     
             except requests.exceptions.Timeout:
-                logger.error("Google Books API request timed out")
+                logger.warning(f"⏱️ Request timeout (attempt {attempt + 1}/{max_retries})")
                 if attempt == max_retries - 1:
+                    logger.error("❌ Max retries exceeded for timeout")
                     return []
                     
             except requests.exceptions.ConnectionError:
-                logger.error("Failed to connect to Google Books API")
+                logger.warning(f"🔌 Connection error (attempt {attempt + 1}/{max_retries})")
                 if attempt == max_retries - 1:
+                    logger.error("❌ Max retries exceeded for connection error")
                     return []
                     
             except Exception as e:
-                logger.error(f"Unexpected error in API call: {e}")
+                logger.error(f"❌ Unexpected error in API call: {e}", exc_info=True)
                 if attempt == max_retries - 1:
                     return []
+        
+        return []  # Fallback return
     
     def _make_api_call(self, query, max_results):
         """
@@ -141,14 +162,38 @@ class GoogleBooksAPI:
             'projection': 'full'
         }
         
-        logger.debug(f"Making API call for query: {query}")
-        response = requests.get(endpoint, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
+        # Log sanitized parameters (hide full API key)
+        safe_params = params.copy()
+        safe_params['key'] = '***HIDDEN***'
+        logger.debug(f"🌐 Making API call to {endpoint}")
+        logger.debug(f"📤 Request params: {safe_params}")
         
-        items = data.get('items', [])
-        logger.info(f"Found {len(items)} results for query: {query}")
-        return items
+        try:
+            response = requests.get(endpoint, params=params, timeout=10)
+            logger.info(f"📥 Response status: {response.status_code}")
+            
+            response.raise_for_status()
+            data = response.json()
+            
+            items = data.get('items', [])
+            total_items = data.get('totalItems', 0)
+            logger.info(f"📚 Found {len(items)} items (total: {total_items}) for query: '{query}'")
+            
+            # Log first result title for debugging if available
+            if items and len(items) > 0:
+                first_title = items[0].get('volumeInfo', {}).get('title', 'Unknown')
+                logger.debug(f"🔖 First result title: '{first_title}'")
+            
+            return items
+            
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"❌ HTTP error in API call: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response body: {e.response.text[:500]}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Unexpected error in _make_api_call: {e}")
+            raise
     
     def get_book_by_id(self, google_books_id):
         """
@@ -164,23 +209,29 @@ class GoogleBooksAPI:
             logger.warning("Empty Google Books ID provided")
             return None
         
+        logger.info(f"🔍 Fetching book with ID: {google_books_id}")
         endpoint = f"{self.BASE_URL}/volumes/{google_books_id}"
         params = {'key': self.api_key}
         
         try:
-            logger.debug(f"Fetching book with ID: {google_books_id}")
             response = requests.get(endpoint, params=params, timeout=10)
+            logger.info(f"📥 Response status: {response.status_code}")
+            
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            title = data.get('volumeInfo', {}).get('title', 'Unknown')
+            logger.info(f"✅ Successfully fetched book: '{title}'")
+            return data
             
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
-                logger.info(f"Book not found with ID: {google_books_id}")
+                logger.info(f"📭 Book not found with ID: {google_books_id}")
             else:
-                logger.error(f"HTTP error fetching book {google_books_id}: {e}")
+                logger.error(f"❌ HTTP error fetching book {google_books_id}: {e}")
             return None
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error fetching book {google_books_id}: {e}")
+            logger.error(f"❌ Error fetching book {google_books_id}: {e}")
             return None
     
     def parse_book_data(self, api_data):
@@ -198,6 +249,8 @@ class GoogleBooksAPI:
             return {}
         
         volume_info = api_data.get('volumeInfo', {})
+        book_id = api_data.get('id', 'Unknown')
+        logger.debug(f"📖 Parsing book data for ID: {book_id}")
         
         # ======================================================================
         # Parse publication date (handles various formats)
@@ -212,8 +265,9 @@ class GoogleBooksAPI:
                     published_date = datetime.strptime(date_str, '%Y-%m').date()
                 else:                       # Full date
                     published_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                logger.debug(f"📅 Parsed date: {published_date}")
             except ValueError as e:
-                logger.warning(f"Could not parse date '{date_str}': {e}")
+                logger.warning(f"⚠️ Could not parse date '{date_str}': {e}")
         
         # ======================================================================
         # Extract ISBN identifiers
@@ -226,8 +280,10 @@ class GoogleBooksAPI:
             
             if id_type == 'ISBN_13':
                 isbn_13 = id_value
+                logger.debug(f"📚 Found ISBN-13: {isbn_13}")
             elif id_type == 'ISBN_10':
                 isbn_10 = id_value
+                logger.debug(f"📚 Found ISBN-10: {isbn_10}")
         
         # ======================================================================
         # Get image URLs (prioritize larger images)
@@ -240,6 +296,9 @@ class GoogleBooksAPI:
             image_links.get('small') or
             image_links.get('thumbnail')
         )
+        
+        if cover_url:
+            logger.debug(f"🖼️ Found cover image URL")
         
         # ======================================================================
         # Build and return normalized book data
@@ -260,7 +319,7 @@ class GoogleBooksAPI:
             'google_books_id': api_data.get('id', ''),
         }
         
-        logger.debug(f"Successfully parsed book data for: {parsed_data['title']}")
+        logger.info(f"✅ Successfully parsed book data for: '{parsed_data['title']}'")
         return parsed_data
     
     def is_valid_isbn(self, isbn):
@@ -281,6 +340,9 @@ class GoogleBooksAPI:
         
         # Check if all digits and correct length
         if clean_isbn.isdigit():
-            return len(clean_isbn) in [10, 13]
+            is_valid = len(clean_isbn) in [10, 13]
+            logger.debug(f"🔢 ISBN '{isbn}' valid: {is_valid}")
+            return is_valid
         
+        logger.debug(f"🔢 ISBN '{isbn}' invalid: contains non-digit characters")
         return False
