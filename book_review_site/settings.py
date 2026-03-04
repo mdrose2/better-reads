@@ -26,7 +26,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-ay*%6nuktf1gpt#6%q7n1)nc(s9s$7a7!m1r+%z7avb(%z$b$1'
 DEBUG = False
-ALLOWED_HOSTS = ['https://better-reads-zlcy.onrender.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = [
+    'https://better-reads-zlcy.onrender.com', 
+    '127.0.0.1', 
+    'localhost',
+    '.onrender.com',
+]
 
 # ==============================================================================
 # APPLICATION DEFINITION
