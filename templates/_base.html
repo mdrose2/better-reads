@@ -41,11 +41,20 @@
             <!-- Navigation Links -->
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <!-- Library (All Books) - visible to everyone -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'list' %}active{% endif %}" 
+                        href="{% url 'books:list' %}">
+                            <i class="bi bi-collection me-1"></i>Library
+                        </a>
+                    </li>
+                    
+                    <!-- My Library (Personal) - only visible to logged-in users -->
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'book-list' %}active{% endif %}" 
-                            href="{% url 'books:list' %}">
-                                <i class="bi bi-collection me-1"></i>My Library
+                            <a class="nav-link {% if request.resolver_match.url_name == 'my-library' %}active{% endif %}" 
+                            href="{% url 'books:my-library' %}">
+                                <i class="bi bi-person-lines-fill me-1"></i>My Library
                             </a>
                         </li>
                     {% endif %}

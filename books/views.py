@@ -2,7 +2,9 @@
 View classes for the books app.
 
 This module contains all view logic for book-related functionality including:
-- Listing and searching books
+- Listing all books (community library)
+- Displaying personal library for logged-in users
+- Searching books via Google Books API
 - Viewing book details
 - Adding books from Google Books API
 - Managing indie book submissions
@@ -20,20 +22,27 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .models import Book
 from .utils import GoogleBooksAPI
 from .forms import IndieBookForm
+from reviews.models import Review
 
 logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
-# PUBLIC VIEWS
+# LIBRARY VIEWS
 # ==============================================================================
 
-class BookListView(ListView):
+class AllBooksListView(ListView):
     """
-    Display a paginated list of all books in the library.
-
+    Display ALL books in the library (community collection).
+    
+    Shows every book added by any user or imported from API.
+    Visible to all users (authenticated or not).
+    
     Template: books/book_list.html
-    Context: 'books' (paginated list of Book objects)
+    Context: 
+        - 'books': All Book objects, paginated
+        - 'page_title': 'Library'
+        - 'is_personal_library': False
     Pagination: 20 books per page
     """
     model = Book
@@ -41,6 +50,77 @@ class BookListView(ListView):
     context_object_name = 'books'
     paginate_by = 20
 
+    def get_queryset(self):
+        """Return all books, ordered by most recent."""
+        return Book.objects.all().order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        """Add context to indicate this is the community library."""
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'Library'
+        context['is_personal_library'] = False
+        return context
+
+
+class MyLibraryView(LoginRequiredMixin, ListView):
+    """
+    Display books that the current user has interacted with.
+    
+    Shows:
+    - Books the user has added (indie books)
+    - Books the user has reviewed
+    
+    Only visible to authenticated users. Redirects to login if not authenticated.
+    
+    Template: books/book_list.html
+    Context:
+        - 'books': Filtered list of Book objects
+        - 'page_title': 'My Library'
+        - 'is_personal_library': True
+    Pagination: 20 books per page
+    """
+    model = Book
+    template_name = 'books/book_list.html'
+    context_object_name = 'books'
+    paginate_by = 20
+    login_url = reverse_lazy('users:login')
+
+    def get_queryset(self):
+        """
+        Return books added or reviewed by the current user.
+        
+        Combines:
+        - Books where user is the added_by (indie books)
+        - Books the user has reviewed
+        """
+        user = self.request.user
+        
+        # Get books the user has reviewed
+        reviewed_book_ids = Review.objects.filter(
+            user=user
+        ).values_list('book_id', flat=True)
+        
+        # Get books the user has added (indie books)
+        added_book_ids = Book.objects.filter(
+            added_by=user
+        ).values_list('id', flat=True)
+        
+        # Combine and get unique books
+        book_ids = set(list(reviewed_book_ids) + list(added_book_ids))
+        
+        return Book.objects.filter(id__in=book_ids).order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        """Add context to indicate this is the personal library."""
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'My Library'
+        context['is_personal_library'] = True
+        return context
+
+
+# ==============================================================================
+# BOOK DETAIL VIEW
+# ==============================================================================
 
 class BookDetailView(DetailView):
     """
@@ -78,10 +158,30 @@ class BookDetailView(DetailView):
             return redirect('books:list')
         return super().get(request, *args, **kwargs)
 
+
+# ==============================================================================
+# SEARCH VIEWS
+# ==============================================================================
+
 class BookSearchView(TemplateView):
+    """
+    Search for books using the Google Books API.
+
+    Features:
+    - Displays search form and results
+    - Checks local database for existing books
+    - Handles API rate limits and errors with exponential backoff retry logic
+    - User-friendly error messages for API issues
+
+    Template: books/book_search.html
+    Context:
+        - 'query': Current search query
+        - 'results': Parsed book data from Google Books API
+    """
     template_name = 'books/book_search.html'
 
     def get_context_data(self, **kwargs):
+        """Add search results to context with comprehensive error handling."""
         context = super().get_context_data(**kwargs)
         query = self.request.GET.get('q', '').strip()
 
@@ -90,11 +190,8 @@ class BookSearchView(TemplateView):
             
             try:
                 api = GoogleBooksAPI()
-                
-                # Log API key status (without exposing the key)
                 logger.info(f"API Key present: {bool(api.api_key)}")
                 
-                # Attempt the search
                 results = api.search_books(query)
                 logger.info(f"Raw results type: {type(results)}")
                 
@@ -106,7 +203,7 @@ class BookSearchView(TemplateView):
                     )
                     results = []
                 
-                # Parse results
+                # Parse results and check against local database
                 books_data = []
                 for item in results:
                     try:
@@ -138,6 +235,7 @@ class BookSearchView(TemplateView):
 
         return context
 
+
 # ==============================================================================
 # GOOGLE BOOKS API IMPORT VIEWS
 # ==============================================================================
@@ -148,7 +246,7 @@ class AddBookFromAPIMixin(CreateView):
     
     For authenticated users: Adds book and redirects to detail page.
     For anonymous users: Adds book, stores book info in session,
-    and redirects to login with a next parameter.
+    and redirects to login with a next parameter for seamless post-login redirect.
     
     URL Pattern: /books/add/<str:google_books_id>/
     """
@@ -219,6 +317,7 @@ class AddBookFromAPIMixin(CreateView):
             login_url = reverse('users:login')
             next_url = reverse('books:detail', args=[book.slug])
             return redirect(f"{login_url}?next={next_url}")
+
 
 # ==============================================================================
 # ADMIN BOOK MANAGEMENT VIEWS (Superuser Only)

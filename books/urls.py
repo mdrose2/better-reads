@@ -3,7 +3,8 @@ URL patterns for the books app.
 
 This module defines all URL routes for book-related functionality including:
 - Searching for books via Google Books API
-- Viewing, adding, editing, and deleting books
+- Viewing community and personal libraries
+- Adding, editing, and deleting books
 - Managing indie book submissions
 """
 
@@ -12,13 +13,13 @@ from . import views
 
 app_name = 'books'
 
-# ==============================================================================
-# URL PATTERNS
-# ==============================================================================
-# IMPORTANT: Order matters! Specific patterns must come before dynamic/catch-all
-# patterns to ensure correct routing.
-
 urlpatterns = [
+    # ==========================================================================
+    # PERSONAL LIBRARY (Requires login)
+    # ==========================================================================
+    path('my-library/', 
+         views.MyLibraryView.as_view(), 
+         name='my-library'),
     
     # ==========================================================================
     # SEARCH & DISCOVERY
@@ -32,7 +33,7 @@ urlpatterns = [
          name='add-from-api'),
     
     # ==========================================================================
-    # INDIE BOOK SUBMISSIONS
+    # INDIE BOOK SUBMISSIONS (Requires login)
     # ==========================================================================
     path('add/indie/', 
          views.IndieBookCreateView.as_view(), 
@@ -41,7 +42,6 @@ urlpatterns = [
     # ==========================================================================
     # BOOK DETAIL & MANAGEMENT
     # ==========================================================================
-    # Book detail view (using slug for SEO-friendly URLs)
     path('<slug:slug>/', 
          views.BookDetailView.as_view(), 
          name='detail'),
@@ -65,10 +65,9 @@ urlpatterns = [
          name='delete-indie'),
     
     # ==========================================================================
-    # BOOK LISTING (CATCH-ALL)
+    # COMMUNITY LIBRARY (All books - public)
     # ==========================================================================
-    # This must be last as it would match any URL not caught above
     path('', 
-         views.BookListView.as_view(), 
+         views.AllBooksListView.as_view(), 
          name='list'),
 ]
