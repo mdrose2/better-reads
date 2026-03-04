@@ -145,11 +145,10 @@ class BookSearchView(TemplateView):
 class AddBookFromAPIMixin(CreateView):
     """
     Import a book from Google Books API using its Google Books ID.
-
-    Checks if book already exists in database before importing.
-    If exists, redirects to book detail page with info message.
-    If new, fetches data from API, creates book, and redirects to detail page.
-
+    
+    For authenticated users: Adds book and redirects to detail page.
+    For anonymous users: Adds book but shows message about logging in to review.
+    
     URL Pattern: /books/add/<str:google_books_id>/
     """
     model = Book
@@ -164,10 +163,17 @@ class AddBookFromAPIMixin(CreateView):
         # Check if book already exists in database
         existing = Book.objects.filter(google_books_id=google_books_id).first()
         if existing:
-            messages.info(
-                request,
-                f'"{existing.title}" is already in your library!'
-            )
+            if request.user.is_authenticated:
+                messages.info(
+                    request,
+                    f'"{existing.title}" is already in your library!'
+                )
+            else:
+                messages.info(
+                    request,
+                    f'"{existing.title}" is already in our library. '
+                    f'<a href="{% url "users:login" %}">Log in</a> to leave a review!'
+                )
             return redirect('books:detail', slug=existing.slug)
 
         # Fetch book data from API
@@ -185,12 +191,22 @@ class AddBookFromAPIMixin(CreateView):
         parsed_data = api.parse_book_data(book_data)
         book = Book.objects.create(**parsed_data)
 
-        messages.success(
-            request,
-            f'Successfully added "{book.title}" to your library!'
-        )
+        # Custom message based on authentication status
+        if request.user.is_authenticated:
+            messages.success(
+                request,
+                f'Successfully added "{book.title}" to your library!'
+            )
+        else:
+            messages.info(
+                request,
+                f'✨ "{book.title}" has been added to our library! '
+                f'<a href="{% url "users:login" %}">Log in</a> or '
+                f'<a href="{% url "users:register" %}">create an account</a> '
+                f'to write a review!'
+            )
+        
         return redirect('books:detail', slug=book.slug)
-
 
 # ==============================================================================
 # ADMIN BOOK MANAGEMENT VIEWS (Superuser Only)

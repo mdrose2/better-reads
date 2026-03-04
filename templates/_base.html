@@ -41,12 +41,14 @@
             <!-- Navigation Links -->
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'book-list' %}active{% endif %}" 
-                           href="{% url 'books:list' %}">
-                            <i class="bi bi-collection me-1"></i>My Library
-                        </a>
-                    </li>
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'book-list' %}active{% endif %}" 
+                            href="{% url 'books:list' %}">
+                                <i class="bi bi-collection me-1"></i>My Library
+                            </a>
+                        </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'search' %}active{% endif %}" 
                            href="{% url 'books:search' %}">
@@ -114,7 +116,7 @@
         <div class="container mt-3">
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
+                    {{ message|safe_message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             {% endfor %}
