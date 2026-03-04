@@ -87,17 +87,38 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'book_review_site.wsgi.application'
 
+# book_review_site/settings.py
+
+import os
+import dj_database_url
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 # ==============================================================================
-# DATABASE
+# DATABASE CONFIGURATION
 # ==============================================================================
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),
-        conn_max_age=600,
-        ssl_require=True
-    )
-}
+# Check for Render
+if os.getenv('DATABASE_URL'):
+    # Production: Use PostgreSQL on Render
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv('DATABASE_URL'),
+            conn_max_age=600,
+            ssl_require=True
+        )
+    }
+else:
+    # Development: Use SQLite locally
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # ==============================================================================
 # PASSWORD VALIDATION
