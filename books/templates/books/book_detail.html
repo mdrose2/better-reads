@@ -263,7 +263,7 @@
                         </h6>
                         
                         <!-- Review Content -->
-                        <p class="card-text">{{ review.content|linebreaks }}</p>
+                        <p class="card-text">{{ review.content|safe }}</p>
                         
                         <!-- Review Actions (for review author only) -->
                         {% if review.user == user %}
