@@ -125,13 +125,6 @@ class MyLibraryView(LoginRequiredMixin, ListView):
 class BookDetailView(DetailView):
     """
     Display detailed information about a single book.
-
-    Includes book metadata, cover image, description, and all associated reviews.
-    Features error handling for non-existent books with user-friendly redirects.
-
-    Template: books/book_detail.html
-    Context: 'book' (Book object)
-    URL Pattern: /books/<slug:slug>/
     """
     model = Book
     template_name = 'books/book_detail.html'
@@ -140,24 +133,56 @@ class BookDetailView(DetailView):
     slug_url_kwarg = 'slug'
 
     def get_object(self, queryset=None):
-        """
-        Retrieve the book with error handling.
-
-        Returns None and adds error message if book doesn't exist.
-        """
+        """Retrieve the book with error handling."""
         try:
             return super().get_object(queryset)
-        except Exception:
+        except Exception as e:
+            logger.error(f"BookDetailView.get_object error: {e}")
             messages.error(self.request, "Book not found. It may have been deleted.")
             return None
 
     def get(self, request, *args, **kwargs):
-        """Handle GET request with error handling for missing books."""
-        book = self.get_object()
-        if book is None:
+        """Handle GET request with comprehensive error handling."""
+        try:
+            # Log the request details
+            logger.info(f"="*50)
+            logger.info(f"Book detail view accessed")
+            logger.info(f"URL: {request.path}")
+            logger.info(f"User: {request.user}")
+            logger.info(f"Authenticated: {request.user.is_authenticated}")
+            logger.info(f"Session key: {request.session.session_key}")
+            logger.info(f"="*50)
+            
+            # Get the book
+            book = self.get_object()
+            if book is None:
+                return redirect('books:list')
+            
+            # Log book details
+            logger.info(f"Book found: {book.id} - {book.title}")
+            logger.info(f"Review count: {book.review_count()}")
+            
+            # Try to render
+            response = super().get(request, *args, **kwargs)
+            logger.info(f"✅ View rendered successfully")
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ ERROR in BookDetailView.get: {e}")
+            logger.error(traceback.format_exc())
+            messages.error(request, "An error occurred while loading this book.")
             return redirect('books:list')
-        return super().get(request, *args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        """Add context with error handling."""
+        try:
+            context = super().get_context_data(**kwargs)
+            logger.info(f"Context data generated successfully")
+            return context
+        except Exception as e:
+            logger.error(f"❌ Error in get_context_data: {e}")
+            logger.error(traceback.format_exc())
+            return super().get_context_data(**kwargs)
 
 # ==============================================================================
 # SEARCH VIEWS
