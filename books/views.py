@@ -407,7 +407,6 @@ class BookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         """Add success message after successful update."""
         messages.success(
             self.request,
-            f'<i class="bi bi-check-circle me-2"></i> '
             f'"{self.object.title}" has been updated successfully!'
         )
         return super().form_valid(form)
