@@ -148,7 +148,7 @@ class AddBookFromAPIMixin(CreateView):
     
     For authenticated users: Adds book and redirects to detail page.
     For anonymous users: Adds book, stores book info in session,
-    and shows message about logging in to review.
+    and redirects to login with a next parameter.
     
     URL Pattern: /books/add/<str:google_books_id>/
     """
@@ -169,15 +169,20 @@ class AddBookFromAPIMixin(CreateView):
                     request,
                     f'📚 "{existing.title}" is already in your library!'
                 )
+                return redirect('books:detail', slug=existing.slug)
             else:
-                # Store book info in session for potential redirect after login
+                # Store book info in session for redirect after login
                 request.session['pending_book_slug'] = existing.slug
                 request.session['pending_book_title'] = existing.title
                 messages.info(
                     request,
-                    f'📚 "{existing.title}" is already in our library.'
+                    f'📚 "{existing.title}" is already in our library. '
+                    f'Please log in to view it.'
                 )
-            return redirect('books:detail', slug=existing.slug)
+                # Redirect to login with next parameter
+                login_url = reverse('users:login')
+                next_url = reverse('books:detail', args=[existing.slug])
+                return redirect(f"{login_url}?next={next_url}")
 
         # Fetch book data from API
         api = GoogleBooksAPI()
@@ -200,16 +205,20 @@ class AddBookFromAPIMixin(CreateView):
                 request,
                 f'✅ Successfully added "{book.title}" to your library!'
             )
+            return redirect('books:detail', slug=book.slug)
         else:
             # Store book info in session for potential redirect after login
             request.session['pending_book_slug'] = book.slug
             request.session['pending_book_title'] = book.title
             messages.info(
                 request,
-                f'✨ "{book.title}" has been added to our library!'
+                f'✨ "{book.title}" has been added to our library! '
+                f'Please log in or create an account to view it and write reviews.'
             )
-        
-        return redirect('books:detail', slug=book.slug)
+            # Redirect to login with next parameter
+            login_url = reverse('users:login')
+            next_url = reverse('books:detail', args=[book.slug])
+            return redirect(f"{login_url}?next={next_url}")
 
 # ==============================================================================
 # ADMIN BOOK MANAGEMENT VIEWS (Superuser Only)
