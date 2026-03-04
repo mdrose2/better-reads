@@ -1,0 +1,228 @@
+{% extends '_base.html' %}
+
+{% block title %}Better Reads - Discover Your Next Favorite Book{% endblock %}
+
+{% block content %}
+
+<!-- ======================================================================
+     HERO SECTION
+====================================================================== -->
+<div class="bg-dark text-light py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-3 fw-bold mb-4">Welcome to Better Reads</h1>
+                <p class="lead mb-4">Discover your next favorite book, share your thoughts, and join a community of passionate readers.</p>
+                <div class="d-flex gap-3">
+                    <a href="{% url 'books:search' %}" class="btn btn-success btn-lg">
+                        <i class="bi bi-search me-2"></i>Find Books
+                    </a>
+                    <a href="{% url 'users:register' %}" class="btn btn-outline-light btn-lg">
+                        <i class="bi bi-person-plus me-2"></i>Join Now
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="text-center">
+                    <i class="bi bi-book-half text-success" style="font-size: 12rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================
+     STATS SECTION
+====================================================================== -->
+<div class="container my-5">
+    <div class="row g-4 text-center">
+        <div class="col-md-4">
+            <div class="card border-0 bg-light">
+                <div class="card-body">
+                    <i class="bi bi-book text-success" style="font-size: 3rem;"></i>
+                    <h2 class="display-4 fw-bold">{{ total_books }}</h2>
+                    <p class="text-muted">Books in Library</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-light">
+                <div class="card-body">
+                    <i class="bi bi-star text-success" style="font-size: 3rem;"></i>
+                    <h2 class="display-4 fw-bold">{{ total_reviews }}</h2>
+                    <p class="text-muted">Reviews Written</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-light">
+                <div class="card-body">
+                    <i class="bi bi-people text-success" style="font-size: 3rem;"></i>
+                    <h2 class="display-4 fw-bold">{{ total_users }}</h2>
+                    <p class="text-muted">Active Readers</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================
+     FEATURED BOOKS SECTION
+====================================================================== -->
+{% if featured_books %}
+<div class="container my-5">
+    <h2 class="text-center mb-4">Featured Books</h2>
+    <div class="row g-4">
+        {% for book in featured_books %}
+            <div class="col-md-4 col-lg-2">
+                <div class="card h-100 shadow-sm">
+                    
+                    <!-- Book Cover -->
+                    {% if book.thumbnail_url %}
+                        <img src="{{ book.thumbnail_url }}" 
+                             class="card-img-top p-2" 
+                             alt="{{ book.title }}"
+                             style="height: 150px; object-fit: contain;">
+                    {% else %}
+                        <div class="bg-light d-flex align-items-center justify-content-center" 
+                             style="height: 150px;">
+                            <i class="bi bi-book text-muted" style="font-size: 3rem;"></i>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Card Body -->
+                    <div class="card-body d-flex flex-column">
+                        <h6 class="card-title">{{ book.title|truncatechars:30 }}</h6>
+                        <p class="card-text small text-muted">
+                            <i class="bi bi-pencil me-1"></i>
+                            {{ book.authors|join:", "|truncatechars:20 }}
+                        </p>
+                        
+                        <!-- Review Stats -->
+                        {% if book.review_count > 0 %}
+                            <p class="card-text small mb-2">
+                                <span class="text-warning">
+                                    <i class="bi bi-star-fill me-1"></i>
+                                    {{ book.average_rating }}
+                                </span>
+                                <span class="text-muted mx-1">•</span>
+                                <span class="text-muted">
+                                    <i class="bi bi-chat me-1"></i>
+                                    {{ book.review_count }}
+                                </span>
+                            </p>
+                        {% else %}
+                            <p class="card-text small text-muted mb-2">
+                                <i class="bi bi-chat me-1"></i>
+                                No reviews
+                            </p>
+                        {% endif %}
+                        
+                        <!-- Spacer -->
+                        <div class="mt-auto"></div>
+                    </div>
+                    
+                    <!-- Card Footer -->
+                    <div class="card-footer bg-transparent border-0 pb-3 pt-0">
+                        <a href="{% url 'books:detail' book.slug %}" 
+                           class="btn btn-sm btn-outline-success w-100">
+                            <i class="bi bi-eye me-1"></i>View
+                        </a>
+                    </div>
+                    
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ======================================================================
+     RECENT REVIEWS SECTION
+====================================================================== -->
+{% if recent_reviews %}
+<div class="container my-5">
+    <h2 class="text-center mb-4">Recent Reviews</h2>
+    <div class="row g-4">
+        {% for review in recent_reviews %}
+            <div class="col-md-6">
+                <div class="card review-card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column">
+                        
+                        <!-- Book Title and Rating -->
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">
+                                <a href="{% url 'books:detail' review.book.slug %}" 
+                                   class="text-success text-decoration-none">
+                                    {{ review.book.title|truncatechars:40 }}
+                                    {% if review.is_recent %}
+                                        <span class="badge bg-success ms-2">New</span>
+                                    {% endif %}
+                                </a>
+                            </h5>
+                            <span class="text-warning" title="{{ review.rating }} stars">
+                                {{ review.get_star_rating }}
+                            </span>
+                        </div>
+                        
+                        <!-- Review Title -->
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            "{{ review.title }}"
+                        </h6>
+                        
+                        <!-- Review Content -->
+                        <p class="card-text">{{ review.content|truncatewords:30 }}</p>
+                        
+                        <!-- Review Meta Info -->
+                        <div class="text-muted small mb-3">
+                            <span class="me-3">
+                                <i class="bi bi-person me-1"></i>{{ review.user.username }}
+                            </span>
+                            <span>
+                                <i class="bi bi-calendar me-1"></i>{{ review.created_at|date:"M d, Y" }}
+                                {% if review.is_edited %}
+                                    <span class="text-muted">(edited)</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <!-- Review Stats -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">
+                                <i class="bi bi-file-text me-1"></i>{{ review.word_count }} words
+                            </small>
+                        </div>
+                        
+                        <!-- Spacer -->
+                        <div class="mt-auto"></div>
+                    </div>
+                    
+                    <!-- Card Footer -->
+                    <div class="card-footer bg-transparent">
+                        <a href="{% url 'books:detail' review.book.slug %}" 
+                           class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-chat me-1"></i>Read Full Review
+                        </a>
+                    </div>
+                    
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ======================================================================
+     CALL TO ACTION
+====================================================================== -->
+<div class="bg-success text-light py-5 mt-0">
+    <div class="container text-center">
+        <h2 class="mb-4">Ready to start your reading journey?</h2>
+        <p class="lead mb-4">Join Better Reads today and connect with fellow book lovers.</p>
+        <a href="{% url 'users:register' %}" class="btn btn-light btn-lg">
+            <i class="bi bi-person-plus me-2"></i>Sign Up Now
+        </a>
+    </div>
+</div>
+
+{% endblock %}

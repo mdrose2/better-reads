@@ -1,0 +1,146 @@
+{% extends '_base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if object %}
+        Edit Indie Book - {{ object.title }}
+    {% else %}
+        Add an Indie Book
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <!-- ==============================================================
+                 MAIN FORM CARD
+            ============================================================== -->
+            <div class="card shadow">
+                
+                <!-- Card Header -->
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        {% if object %}
+                            <i class="bi bi-pencil-square me-2"></i>Edit Indie Book
+                        {% else %}
+                            <i class="bi bi-heart-fill me-2"></i>Add an Indie Book
+                        {% endif %}
+                    </h4>
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body">
+                    
+                    <!-- Info Alert -->
+                    <div class="alert alert-info d-flex align-items-center mb-4">
+                        <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                        <div>
+                            <strong>Support Independent Authors!</strong><br>
+                            Can't find a book in our search? Add it here to share with the community.
+                            You'll be able to edit or delete books you've added.
+                        </div>
+                    </div>
+                    
+                    <!-- Indie Book Form -->
+                    <form method="post" class="indie-book-form" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Form Fields Loop -->
+                        {% for field in form %}
+                            <div class="mb-3">
+                                
+                                <!-- Field Label -->
+                                <label for="{{ field.id_for_label }}" class="form-label fw-semibold">
+                                    {{ field.label }}
+                                    {% if field.field.required %}
+                                        <span class="text-danger">*</span>
+                                    {% endif %}
+                                </label>
+                                
+                                <!-- Field Input with Icons -->
+                                {% if field.name == 'authors' %}
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light">
+                                            <i class="bi bi-pencil"></i>
+                                        </span>
+                                        {{ field }}
+                                    </div>
+                                    
+                                {% elif field.name == 'isbn_13' %}
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light">
+                                            <i class="bi bi-upc-scan"></i>
+                                        </span>
+                                        {{ field }}
+                                    </div>
+                                    
+                                {% elif field.name == 'page_count' %}
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light">
+                                            <i class="bi bi-file-text"></i>
+                                        </span>
+                                        {{ field }}
+                                        <span class="input-group-text bg-light">pages</span>
+                                    </div>
+                                    
+                                {% else %}
+                                    {{ field }}
+                                {% endif %}
+                                
+                                <!-- Help Text -->
+                                {% if field.help_text %}
+                                    <div class="form-text text-muted">{{ field.help_text }}</div>
+                                {% endif %}
+                                
+                                <!-- Field Errors -->
+                                {% if field.errors %}
+                                    <div class="alert alert-danger mt-2 py-2">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        {{ field.errors }}
+                                    </div>
+                                {% endif %}
+                                
+                            </div> <!-- end form-group -->
+                        {% endfor %}
+                        
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            
+                            <!-- Cancel Button -->
+                            <a href="{% url 'books:search' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            
+                            <!-- Submit Button -->
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle me-2"></i>
+                                {% if object %}Save Changes{% else %}Add Book{% endif %}
+                            </button>
+                            
+                        </div>
+                        
+                    </form> <!-- end indie-book-form -->
+                    
+                </div> <!-- end card-body -->
+            </div> <!-- end main form card -->
+            
+            <!-- Contribution Info Alert -->
+            <div class="alert alert-warning mt-4 d-flex align-items-center">
+                <i class="bi bi-shield-check me-3 fs-4"></i>
+                <div>
+                    <strong>Your Contribution Matters!</strong><br>
+                    Books you add will be visible to everyone. You can edit or delete them anytime.
+                </div>
+            </div>
+            
+        </div> <!-- end col-lg-8 -->
+    </div> <!-- end row -->
+</div> <!-- end container -->
+{% endblock %}
+
+{% block extra_js %}
+    <!-- Form validation for indie book creation/editing -->
+    <script src="{% static 'books/js/indie_book_form.js' %}"></script>
+{% endblock %}

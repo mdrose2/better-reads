@@ -1,0 +1,199 @@
+{% extends '_base.html' %}
+{% load static %}
+
+{% block title %}Edit Book - {{ book.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <!-- ==============================================================
+                 BREADCRUMB NAVIGATION
+            ============================================================== -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/" class="text-success text-decoration-none">Home</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'books:list' %}" class="text-success text-decoration-none">Books</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'books:detail' book.slug %}" class="text-success text-decoration-none">
+                            {{ book.title|truncatechars:30 }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                </ol>
+            </nav>
+            
+            <!-- ==============================================================
+                 EDIT BOOK FORM CARD
+            ============================================================== -->
+            <div class="card shadow">
+                
+                <!-- Card Header -->
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>Edit Book Details
+                    </h4>
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body">
+                    
+                    <!-- Admin Info Alert -->
+                    <div class="alert alert-info d-flex align-items-center mb-4">
+                        <i class="bi bi-shield-lock-check me-3 fs-4"></i>
+                        <div>
+                            <strong>Administrator Access</strong><br>
+                            You are editing book information as an administrator. Changes will be visible to all users.
+                        </div>
+                    </div>
+                    
+                    <!-- Book Preview Card -->
+                    <div class="card bg-light mb-4">
+                        <div class="row g-0 align-items-center">
+                            <div class="col-md-3 text-center p-3">
+                                {% if book.thumbnail_url %}
+                                    <img src="{{ book.thumbnail_url }}" 
+                                         alt="{{ book.title }}" 
+                                         class="img-fluid rounded" 
+                                         style="max-height: 120px;">
+                                {% else %}
+                                    <i class="bi bi-book text-muted" style="font-size: 4rem;"></i>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-9">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ book.title }}</h5>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            <i class="bi bi-pencil me-1"></i>
+                                            by {{ book.authors|join:", " }} • 
+                                            <i class="bi bi-chat me-1"></i>
+                                            {{ book.reviews.count }} review{{ book.reviews.count|pluralize }}
+                                        </small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Edit Form -->
+                    <form method="post" class="book-form" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Form Fields -->
+                        <div class="row">
+                            {% for field in form %}
+                                <div class="col-md-{% if field.name in 'title subtitle publisher' %}6{% else %}12{% endif %} mb-3">
+                                    
+                                    <!-- Field Label -->
+                                    <label for="{{ field.id_for_label }}" class="form-label fw-semibold">
+                                        {{ field.label }}
+                                        {% if field.field.required %}
+                                            <span class="text-danger">*</span>
+                                        {% endif %}
+                                    </label>
+                                    
+                                    <!-- Field Input with appropriate styling -->
+                                    {% if field.name == 'authors' or field.name == 'categories' %}
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="bi bi-tags"></i>
+                                            </span>
+                                            {{ field }}
+                                        </div>
+                                        <div class="form-text text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Enter as a comma-separated list
+                                        </div>
+                                        
+                                    {% elif field.name == 'description' %}
+                                        {{ field }}
+                                        <div class="form-text text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Book description/synopsis
+                                        </div>
+                                        
+                                    {% elif field.name == 'published_date' %}
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="bi bi-calendar"></i>
+                                            </span>
+                                            {{ field }}
+                                        </div>
+                                        <div class="form-text text-muted">Format: YYYY-MM-DD</div>
+                                        
+                                    {% elif field.name == 'page_count' %}
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="bi bi-file-text"></i>
+                                            </span>
+                                            {{ field }}
+                                            <span class="input-group-text bg-light">pages</span>
+                                        </div>
+                                        
+                                    {% elif field.name == 'isbn_13' or field.name == 'isbn_10' %}
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="bi bi-upc-scan"></i>
+                                            </span>
+                                            {{ field }}
+                                        </div>
+                                        
+                                    {% elif 'url' in field.name %}
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="bi bi-link"></i>
+                                            </span>
+                                            {{ field }}
+                                        </div>
+                                        
+                                    {% else %}
+                                        {{ field }}
+                                    {% endif %}
+                                    
+                                    <!-- Field Errors -->
+                                    {% if field.errors %}
+                                        <div class="alert alert-danger mt-2 py-2">
+                                            <i class="bi bi-exclamation-triangle me-2"></i>
+                                            {{ field.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            <a href="{% url 'books:detail' book.slug %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Delete Warning -->
+            <div class="alert alert-warning mt-4 d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                <div>
+                    <strong>Need to delete this book?</strong><br>
+                    If you need to remove this book from the library, 
+                    <a href="{% url 'books:delete' book.slug %}" class="alert-link">go to the delete page</a>.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'books/js/book_form.js' %}"></script>
+{% endblock %}

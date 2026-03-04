@@ -1,0 +1,92 @@
+{% extends '_base.html' %}
+
+{% block title %}Delete Review{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            
+            <!-- ======================================================================
+                 DELETE CONFIRMATION CARD
+            ====================================================================== -->
+            <div class="card shadow border-danger">
+                
+                <!-- Card Header -->
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Confirm Deletion
+                    </h4>
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body">
+                    
+                    <!-- Warning Message -->
+                    <p class="lead">Are you sure you want to delete your review of:</p>
+                    <p class="fw-bold fs-5 mb-3">"{{ object.book.title }}"</p>
+                    
+                    <!-- Review Preview -->
+                    <div class="bg-light p-3 rounded mb-3">
+                        <h6 class="fw-semibold">{{ object.title }}</h6>
+                        <div class="text-warning mb-2">
+                            {{ object.get_star_rating }}
+                            <span class="text-muted ms-2">({{ object.rating }} stars)</span>
+                        </div>
+                        <p class="text-muted mb-0">{{ object.content|truncatewords:30 }}</p>
+                        
+                        <!-- Word Count -->
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-file-text me-1"></i>{{ object.word_count }} words
+                        </small>
+                    </div>
+                    
+                    <!-- Review Meta -->
+                    <div class="text-muted small mb-3">
+                        <span class="me-3">
+                            <i class="bi bi-person me-1"></i>{{ object.user.username }}
+                        </span>
+                        <span>
+                            <i class="bi bi-calendar me-1"></i>{{ object.created_at|date:"F j, Y" }}
+                            {% if object.is_edited %}
+                                <span class="text-muted">(edited)</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <!-- Irreversible Warning -->
+                    <div class="alert alert-danger py-2 mb-4">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Warning:</strong> This action cannot be undone.
+                    </div>
+                    
+                    <!-- Confirmation Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="d-flex justify-content-between">
+                            
+                            <!-- Cancel Button -->
+                            <a href="{% url 'books:detail' object.book.slug %}" 
+                               class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                Cancel
+                            </a>
+                            
+                            <!-- Delete Button -->
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-2"></i>
+                                Delete Review
+                            </button>
+                            
+                        </div>
+                    </form>
+                    
+                </div> <!-- end card-body -->
+            </div> <!-- end delete confirmation card -->
+            
+        </div>
+    </div>
+</div>
+{% endblock %}

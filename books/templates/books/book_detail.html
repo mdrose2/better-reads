@@ -1,0 +1,283 @@
+{% extends '_base.html' %}
+
+{% block title %}{{ book.title }} - Better Reads{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    
+    <!-- ======================================================================
+         BREADCRUMB NAVIGATION
+    ====================================================================== -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/" class="text-success text-decoration-none">Home</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'books:list' %}" class="text-success text-decoration-none">My Library</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {{ book.title|truncatechars:30 }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- ======================================================================
+         MAIN BOOK DETAILS
+    ====================================================================== -->
+    <div class="row">
+        
+        <!-- LEFT COLUMN: BOOK COVER -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                {% if book.cover_image_url or book.thumbnail_url %}
+                    <img src="{{ book.cover_image_url|default:book.thumbnail_url }}" 
+                         class="card-img-top p-3" 
+                         alt="{{ book.title }}" 
+                         style="height: 400px; object-fit: contain;">
+                {% else %}
+                    <div class="bg-light d-flex align-items-center justify-content-center" style="height: 400px;">
+                        <i class="bi bi-book text-muted" style="font-size: 5rem;"></i>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- RIGHT COLUMN: BOOK INFORMATION -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    
+                    <!-- Book Title & Badges -->
+                    <h1 class="card-title mb-2">
+                        {{ book.title }}
+                        {% if book.is_indie %}
+                            <span class="badge bg-info ms-2">Indie Book</span>
+                        {% endif %}
+                    </h1>
+                    
+                    {% if book.subtitle %}
+                        <h5 class="text-muted mb-3">{{ book.subtitle }}</h5>
+                    {% endif %}
+                    
+                    <!-- Author -->
+                    <p class="lead mb-4">
+                        <i class="bi bi-pencil me-2"></i>
+                        by {{ book.authors|join:", " }}
+                    </p>
+
+                    <!-- Average Rating -->
+                    {% if book.review_count > 0 %}
+                        <div class="mb-3">
+                            <span class="badge bg-warning text-dark p-2">
+                                <i class="bi bi-star-fill me-1"></i>
+                                Average Rating: {{ book.average_rating }} / 5
+                                <span class="ms-1">({{ book.review_count }} review{{ book.review_count|pluralize }})</span>
+                            </span>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- METADATA GRID -->
+                    <div class="row g-3 mb-4">
+                        
+                        <!-- Left Column Metadata -->
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                {% if book.isbn_13 %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-upc-scan me-2"></i>ISBN-13:</span>
+                                    <span class="badge bg-light text-dark">{{ book.isbn_13 }}</span>
+                                </li>
+                                {% endif %}
+                                
+                                {% if book.isbn_10 %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-upc-scan me-2"></i>ISBN-10:</span>
+                                    <span class="badge bg-light text-dark">{{ book.isbn_10 }}</span>
+                                </li>
+                                {% endif %}
+                                
+                                {% if book.publisher %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-building me-2"></i>Publisher:</span>
+                                    <span class="badge bg-light text-dark">{{ book.publisher }}</span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        
+                        <!-- Right Column Metadata -->
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                {% if book.published_date %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-calendar me-2"></i>Published:</span>
+                                    <span class="badge bg-light text-dark">{{ book.published_date }}</span>
+                                </li>
+                                {% endif %}
+                                
+                                {% if book.page_count %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-file-text me-2"></i>Pages:</span>
+                                    <span class="badge bg-light text-dark">{{ book.page_count }}</span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Categories -->
+                    {% if book.categories %}
+                    <div class="mb-4">
+                        <h6><i class="bi bi-tags me-2"></i>Categories</h6>
+                        {% for category in book.categories %}
+                            <span class="badge bg-success me-1 mb-1 p-2">{{ category }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Description -->
+                    {% if book.description %}
+                    <div class="mb-4">
+                        <h6><i class="bi bi-file-text me-2"></i>Description</h6>
+                        <div class="bg-light p-3 rounded">
+                            {{ book.description|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- ACTION BUTTONS: Primary Actions -->
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'books:list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Library
+                        </a>
+                        <a href="{% url 'books:search' %}" class="btn btn-success">
+                            <i class="bi bi-search me-2"></i>Find More Books
+                        </a>
+                    </div>
+                    
+                    <!-- ==============================================================
+                         ADMIN CONTROLS (Superusers Only)
+                    ============================================================== -->
+                    {% if user.is_superuser %}
+                    <div class="mt-4 pt-3 border-top">
+                        <h6 class="text-muted mb-3">
+                            <i class="bi bi-shield-lock me-2"></i>Administrator Controls
+                        </h6>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'books:edit' book.slug %}" class="btn btn-outline-warning">
+                                <i class="bi bi-pencil me-2"></i>Edit Book
+                            </a>
+                            <a href="{% url 'books:delete' book.slug %}" class="btn btn-outline-danger">
+                                <i class="bi bi-trash me-2"></i>Delete Book
+                            </a>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            These controls are visible only to administrators.
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- ==============================================================
+                         INDIE BOOK CONTROLS (Book Creator Only)
+                    ============================================================== -->
+                    {% if book.is_indie and book.added_by == user %}
+                    <div class="mt-3 pt-2">
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'books:edit-indie' book.slug %}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-pencil me-1"></i>Edit (Indie Book)
+                            </a>
+                            <a href="{% url 'books:delete-indie' book.slug %}" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-trash me-1"></i>Delete (Indie Book)
+                            </a>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-heart me-1"></i>
+                            You added this indie book to the library
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                </div> <!-- end card-body -->
+            </div> <!-- end book details card -->
+        </div> <!-- end right column -->
+    </div> <!-- end main row -->
+
+    <!-- ======================================================================
+         REVIEWS SECTION
+    ====================================================================== -->
+    <div class="mt-5">
+        
+        <!-- Section Header & Write Review Button -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>
+                <i class="bi bi-star me-2"></i>
+                Reviews
+                {% if book.review_count > 0 %}
+                    <span class="badge bg-secondary ms-2">{{ book.review_count }}</span>
+                {% endif %}
+            </h3>
+            
+            {% if user.is_authenticated %}
+                <a href="{% url 'reviews:create' book.id %}" class="btn btn-success">
+                    <i class="bi bi-pencil-square me-2"></i>Write a Review
+                </a>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-outline-success">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Login to Review
+                </a>
+            {% endif %}
+        </div>
+        
+        <!-- Reviews List -->
+        {% if book.reviews.all %}
+            {% for review in book.reviews.all %}
+                <div class="card mb-3 {% if review.user == user %}border-success{% endif %}">
+                    <div class="card-body">
+                        
+                        <!-- Review Header: Title and Rating -->
+                        <div class="d-flex justify-content-between">
+                            <h5 class="card-title">{{ review.title }}</h5>
+                            <span class="text-warning">{{ review.get_star_rating }}</span>
+                        </div>
+                        
+                        <!-- Review Meta: Author and Date -->
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            By {{ review.user.username }} on {{ review.created_at|date:"F j, Y" }}
+                            {% if review.updated_at != review.created_at %}
+                                <span class="text-muted">(edited)</span>
+                            {% endif %}
+                        </h6>
+                        
+                        <!-- Review Content -->
+                        <p class="card-text">{{ review.content|linebreaks }}</p>
+                        
+                        <!-- Review Actions (for review author only) -->
+                        {% if review.user == user %}
+                            <div class="mt-2">
+                                <a href="{% url 'reviews:update' review.slug %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil me-2"></i>Edit
+                                </a>
+                                <a href="{% url 'reviews:delete' review.slug %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash me-2"></i>Delete
+                                </a>
+                            </div>
+                        {% endif %}
+                        
+                    </div> <!-- end review card-body -->
+                </div> <!-- end review card -->
+            {% endfor %}
+            
+        {% else %}
+            <!-- Empty State -->
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                No reviews yet. Be the first to review this book!
+            </div>
+        {% endif %}
+        
+    </div> <!-- end reviews section -->
+    
+</div> <!-- end container -->
+{% endblock %}

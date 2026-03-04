@@ -1,0 +1,182 @@
+{% extends '_base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if object %}
+        Edit Review - {{ object.book.title }}
+    {% else %}
+        Write a Review - {{ book.title }}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            
+            <!-- ======================================================================
+                 REVIEW FORM CARD
+            ====================================================================== -->
+            <div class="card shadow">
+                
+                <!-- Card Header -->
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        {% if object %}
+                            <i class="bi bi-pencil-square me-2"></i>Edit Your Review
+                        {% else %}
+                            <i class="bi bi-star me-2"></i>Write a Review for "{{ book.title|truncatechars:50 }}"
+                        {% endif %}
+                    </h4>
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body">
+                    
+                    <!-- Edit Info Alert -->
+                    {% if object %}
+                        <div class="alert alert-info mb-4 d-flex align-items-center">
+                            <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                            <div>
+                                <strong>Editing your review</strong><br>
+                                <small>
+                                    Originally posted on {{ object.created_at|date:"F j, Y" }}
+                                    {% if object.is_edited %}
+                                        <span class="text-muted">(last edited {{ object.updated_at|date:"F j, Y" }})</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Book Info (for create view) -->
+                    {% if not object and book.thumbnail_url %}
+                        <div class="d-flex align-items-center mb-4 p-3 bg-light rounded">
+                            <img src="{{ book.thumbnail_url }}" 
+                                 alt="{{ book.title }}" 
+                                 class="me-3 rounded"
+                                 style="width: 60px; height: 90px; object-fit: cover;">
+                            <div>
+                                <h5 class="mb-1">{{ book.title }}</h5>
+                                <p class="text-muted mb-0">
+                                    <i class="bi bi-pencil me-1"></i>
+                                    by {{ book.authors|join:", "|truncatechars:40 }}
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Review Form -->
+                    <form method="post" class="review-form" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Rating Field -->
+                        <div class="mb-4">
+                            <label for="{{ form.rating.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-star-fill text-warning me-1"></i>
+                                {{ form.rating.label }}
+                                {% if form.rating.field.required %}<span class="text-danger">*</span>{% endif %}
+                            </label>
+                            {{ form.rating }}
+                            {% if form.rating.help_text %}
+                                <div class="form-text text-muted">{{ form.rating.help_text }}</div>
+                            {% endif %}
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <!-- Title Field -->
+                        <div class="mb-3">
+                            <label for="{{ form.title.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-heading me-1"></i>
+                                {{ form.title.label }}
+                                {% if form.title.field.required %}<span class="text-danger">*</span>{% endif %}
+                            </label>
+                            {{ form.title }}
+                            {% if form.title.help_text %}
+                                <div class="form-text text-muted">{{ form.title.help_text }}</div>
+                            {% endif %}
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <!-- Content Field -->
+                        <div class="mb-3">
+                            <label for="{{ form.content.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-chat-text me-1"></i>
+                                {{ form.content.label }}
+                                {% if form.content.field.required %}<span class="text-danger">*</span>{% endif %}
+                            </label>
+                            {{ form.content }}
+                            {% if form.content.help_text %}
+                                <div class="form-text text-muted">{{ form.content.help_text }}</div>
+                            {% endif %}
+                            
+                            <!-- Character Counter -->
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <div class="invalid-feedback"></div>
+                                <small class="text-muted" id="char-counter"></small>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            
+                            <!-- Cancel Button -->
+                            <a href="{% url 'books:detail' book.slug %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            
+                            <!-- Submit Button -->
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle me-2"></i>
+                                {% if object %}Update Review{% else %}Post Review{% endif %}
+                            </button>
+                            
+                        </div>
+                        
+                    </form>
+                    
+                </div> <!-- end card-body -->
+            </div> <!-- end review form card -->
+            
+            <!-- Helpful Tips -->
+            <div class="alert alert-info mt-4 d-flex align-items-center">
+                <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                <div>
+                    <strong>Review Guidelines</strong><br>
+                    <small>Share your honest thoughts about the book. Help other readers discover great reads!</small>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <!-- Form validation for reviews -->
+    <script src="{% static 'js/validation.js' %}"></script>
+    
+    <!-- Character counter for review content -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const contentField = document.getElementById('{{ form.content.id_for_label }}');
+            const counterElement = document.getElementById('char-counter');
+            
+            if (contentField && counterElement) {
+                const updateCounter = function() {
+                    const remaining = 5000 - contentField.value.length;
+                    counterElement.textContent = `${remaining} characters remaining`;
+                    
+                    if (remaining < 0) {
+                        counterElement.classList.add('text-danger');
+                    } else {
+                        counterElement.classList.remove('text-danger');
+                    }
+                };
+                
+                contentField.addEventListener('input', updateCounter);
+                updateCounter(); // Initial update
+            }
+        });
+    </script>
+{% endblock %}

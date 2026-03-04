@@ -1,0 +1,152 @@
+<!-- books/templates/books/book_list.html -->
+{% extends '_base.html' %}
+
+{% block title %}My Library - Better Reads{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    
+    <!-- ======================================================================
+         PAGE HEADER
+    ====================================================================== -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-collection me-2"></i>
+            My Book Library
+        </h1>
+        <a href="{% url 'books:search' %}" class="btn btn-success">
+            <i class="bi bi-search me-2"></i>Find New Books
+        </a>
+    </div>
+    
+    <!-- ======================================================================
+         BOOK GRID
+    ====================================================================== -->
+    {% if books %}
+        <div class="row g-4">
+            {% for book in books %}
+                <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+                    
+                    <!-- BOOK CARD -->
+                    <div class="card h-100 shadow-sm hover-shadow-lg transition">
+                        
+                        <!-- Book Cover -->
+                        {% if book.thumbnail_url %}
+                            <img src="{{ book.thumbnail_url }}" 
+                                 class="card-img-top p-3" 
+                                 alt="{{ book.title }}" 
+                                 style="height: 200px; object-fit: contain;">
+                        {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center" 
+                                 style="height: 200px;">
+                                <i class="bi bi-book text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Card Body -->
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">
+                                {{ book.title|truncatechars:40 }}
+                                {% if book.is_indie %}
+                                    <span class="badge bg-info ms-1">Indie</span>
+                                {% endif %}
+                            </h5>
+                            
+                            <!-- Author -->
+                            <p class="card-text text-muted small">
+                                <i class="bi bi-pencil me-1"></i>
+                                {{ book.authors|join:", "|truncatechars:30 }}
+                            </p>
+                            
+                            <!-- Review Stats -->
+                            {% if book.review_count > 0 %}
+                                <p class="card-text small mb-2">
+                                    <span class="text-warning">
+                                        <i class="bi bi-star-fill me-1"></i>
+                                        {{ book.average_rating }}
+                                    </span>
+                                    <span class="text-muted mx-1">•</span>
+                                    <span class="text-muted">
+                                        <i class="bi bi-chat me-1"></i>
+                                        {{ book.review_count }} review{{ book.review_count|pluralize }}
+                                    </span>
+                                </p>
+                            {% else %}
+                                <p class="card-text small text-muted mb-2">
+                                    <i class="bi bi-chat me-1"></i>
+                                    No reviews yet
+                                </p>
+                            {% endif %}
+                            
+                            <!-- Spacer to push button to bottom -->
+                            <div class="mt-auto"></div>
+                        </div>
+                        
+                        <!-- Card Footer (always at bottom) -->
+                        <div class="card-footer bg-transparent border-0 pb-3 pt-0">
+                            <a href="{% url 'books:detail' book.slug %}" 
+                               class="btn btn-outline-success w-100">
+                                <i class="bi bi-eye me-2"></i>View
+                            </a>
+                        </div>
+                        
+                    </div> <!-- end book card -->
+                    
+                </div> <!-- end column -->
+            {% endfor %}
+        </div> <!-- end book grid -->
+        
+        <!-- ==============================================================
+             PAGINATION
+        ============================================================== -->
+        {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    
+                    <!-- Previous Page -->
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" 
+                               aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    <!-- Page Numbers -->
+                    {% for num in page_obj.paginator.page_range %}
+                        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endfor %}
+                    
+                    <!-- Next Page -->
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" 
+                               aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                </ul>
+            </nav>
+        {% endif %}
+        
+    <!-- ======================================================================
+         EMPTY STATE
+    ====================================================================== -->
+    {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-emoji-frown display-1 text-muted mb-3"></i>
+            <h3>Your library is empty</h3>
+            <p class="text-muted mb-4">Start building your collection by searching for books!</p>
+            <a href="{% url 'books:search' %}" class="btn btn-success btn-lg">
+                <i class="bi bi-search me-2"></i>Search for Books
+            </a>
+        </div>
+    {% endif %}
+    
+</div> <!-- end container -->
+{% endblock %}

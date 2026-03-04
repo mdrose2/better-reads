@@ -1,0 +1,177 @@
+{% extends '_base.html' %}
+
+{% block title %}Search Books - Better Reads{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    
+    <!-- ======================================================================
+         SEARCH HEADER
+    ====================================================================== -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8 text-center">
+            
+            <!-- Page Title -->
+            <h1 class="display-4 mb-4">
+                <i class="bi bi-search text-success"></i>
+                Find Your Next Read
+            </h1>
+            <p class="lead text-muted mb-4">
+                Search millions of books by title, author, or ISBN
+            </p>
+            
+            <!-- Search Form -->
+            <form method="get" class="mb-4">
+                <div class="input-group input-group-lg">
+                    <input type="text" 
+                           name="q" 
+                           class="form-control form-control-lg border-success" 
+                           placeholder="e.g., 'Percy Jackson', 'Stephen King', '9780439064873'..." 
+                           value="{{ query }}"
+                           aria-label="Search books"
+                           autofocus>
+                    <button type="submit" class="btn btn-success btn-lg" 
+                            onclick="this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Searching...'">
+                        <i class="bi bi-search me-2"></i>Search
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Indie Book Callout -->
+            <div class="text-center mb-4">
+                <div class="card bg-light border-success">
+                    <div class="card-body py-3">
+                        <p class="mb-2">
+                            <i class="bi bi-heart-fill text-success me-2"></i>
+                            <strong>Can't find what you're looking for?</strong>
+                        </p>
+                        <a href="{% url 'books:add-indie' %}" class="btn btn-outline-success">
+                            <i class="bi bi-plus-circle me-2"></i>Add an Indie Book
+                        </a>
+                        <small class="d-block text-muted mt-2">
+                            Support independent authors by adding books not found in our search
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- ======================================================================
+         SEARCH RESULTS
+    ====================================================================== -->
+    {% if results %}
+        
+        <!-- Results Header -->
+        <h2 class="mb-4">
+            <i class="bi bi-grid-3x3-gap-fill me-2"></i>
+            Search Results for "{{ query }}"
+        </h2>
+        
+        <!-- Results Grid -->
+        <div class="row g-4">
+            {% for book in results %}
+                <div class="col-md-4 col-lg-3">
+                    
+                    <!-- BOOK RESULT CARD -->
+                    <div class="card h-100 shadow-sm hover-shadow-lg transition">
+                        
+                        <!-- Book Cover -->
+                        {% if book.thumbnail_url %}
+                            <img src="{{ book.thumbnail_url }}" 
+                                 class="card-img-top p-3" 
+                                 alt="{{ book.title }}" 
+                                 style="height: 200px; object-fit: contain;">
+                        {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center" 
+                                 style="height: 200px;">
+                                <i class="bi bi-book text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Book Info -->
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ book.title|truncatechars:40 }}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <i class="bi bi-pencil me-1"></i>
+                                    {{ book.authors|join:", "|truncatechars:30 }}
+                                </small>
+                            </p>
+                            
+                            <!-- Review Stats (if book already in library) -->
+                            {% if book.in_database %}
+                                {% with existing_book=book.database_id %}
+                                    {% if existing_book.review_count > 0 %}
+                                        <p class="card-text small mb-2">
+                                            <span class="text-warning">
+                                                <i class="bi bi-star-fill me-1"></i>
+                                                {{ existing_book.average_rating }}
+                                            </span>
+                                            <span class="text-muted mx-1">•</span>
+                                            <span class="text-muted">
+                                                <i class="bi bi-chat me-1"></i>
+                                                {{ existing_book.review_count }} review{{ existing_book.review_count|pluralize }}
+                                            </span>
+                                        </p>
+                                    {% else %}
+                                        <p class="card-text small text-muted mb-2">
+                                            <i class="bi bi-chat me-1"></i>
+                                            In library - no reviews yet
+                                        </p>
+                                    {% endif %}
+                                {% endwith %}
+                            {% endif %}
+                            
+                            <!-- Spacer -->
+                            <div class="mt-auto"></div>
+                        </div>
+                        
+                        <!-- Card Footer with Action Button -->
+                        <div class="card-footer bg-transparent border-0 pb-3">
+                            {% if book.in_database %}
+                                <a href="{% url 'books:detail' book.database_id %}" 
+                                   class="btn btn-outline-success w-100">
+                                    <i class="bi bi-eye me-2"></i>View in Library
+                                </a>
+                            {% else %}
+                                <a href="{% url 'books:add-from-api' book.google_books_id %}" 
+                                   class="btn btn-success w-100">
+                                    <i class="bi bi-plus-circle me-2"></i>Add to Library
+                                </a>
+                            {% endif %}
+                        </div>
+                        
+                    </div> <!-- end book card -->
+                    
+                </div> <!-- end column -->
+            {% endfor %}
+        </div> <!-- end results grid -->
+        
+    <!-- ======================================================================
+         NO RESULTS STATE
+    ====================================================================== -->
+    {% elif query %}
+        <div class="text-center py-5">
+            <i class="bi bi-emoji-frown display-1 text-muted mb-3"></i>
+            <h3>No results found for "{{ query }}"</h3>
+            <p class="text-muted">Try different keywords or check your spelling</p>
+            <div class="mt-4">
+                <i class="bi bi-lightbulb text-warning me-2"></i>
+                <span class="text-muted">
+                    Search tips: Use author names, book titles, or ISBN numbers
+                </span>
+            </div>
+            
+            <!-- Indie Book Prompt in Empty State -->
+            <div class="mt-5">
+                <a href="{% url 'books:add-indie' %}" class="btn btn-outline-success btn-lg">
+                    <i class="bi bi-plus-circle me-2"></i>Add an Indie Book Instead
+                </a>
+            </div>
+        </div>
+    {% endif %}
+    
+</div> <!-- end container -->
+{% endblock %}
