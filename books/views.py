@@ -147,7 +147,8 @@ class AddBookFromAPIMixin(CreateView):
     Import a book from Google Books API using its Google Books ID.
     
     For authenticated users: Adds book and redirects to detail page.
-    For anonymous users: Adds book but shows message about logging in to review.
+    For anonymous users: Adds book, stores book info in session,
+    and shows message about logging in to review.
     
     URL Pattern: /books/add/<str:google_books_id>/
     """
@@ -166,13 +167,15 @@ class AddBookFromAPIMixin(CreateView):
             if request.user.is_authenticated:
                 messages.info(
                     request,
-                    f'"{existing.title}" is already in your library!'
+                    f'📚 "{existing.title}" is already in your library!'
                 )
             else:
+                # Store book info in session for potential redirect after login
+                request.session['pending_book_slug'] = existing.slug
+                request.session['pending_book_title'] = existing.title
                 messages.info(
                     request,
-                    f'"{existing.title}" is already in our library. '
-                    f'<a href="{% url "users:login" %}">Log in</a> to leave a review!'
+                    f'📚 "{existing.title}" is already in our library.'
                 )
             return redirect('books:detail', slug=existing.slug)
 
@@ -195,15 +198,15 @@ class AddBookFromAPIMixin(CreateView):
         if request.user.is_authenticated:
             messages.success(
                 request,
-                f'Successfully added "{book.title}" to your library!'
+                f'✅ Successfully added "{book.title}" to your library!'
             )
         else:
+            # Store book info in session for potential redirect after login
+            request.session['pending_book_slug'] = book.slug
+            request.session['pending_book_title'] = book.title
             messages.info(
                 request,
-                f'✨ "{book.title}" has been added to our library! '
-                f'<a href="{% url "users:login" %}">Log in</a> or '
-                f'<a href="{% url "users:register" %}">create an account</a> '
-                f'to write a review!'
+                f'✨ "{book.title}" has been added to our library!'
             )
         
         return redirect('books:detail', slug=book.slug)

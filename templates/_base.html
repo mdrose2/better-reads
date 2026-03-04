@@ -123,6 +123,23 @@
         </div>
     {% endif %}
 
+    {% if not user.is_authenticated and pending_book %}
+        <div class="container mt-3">
+            <div class="alert alert-info alert-dismissible fade show d-flex align-items-center" role="alert">
+                <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                <div class="flex-grow-1">
+                    <strong>✨ Ready to review "{{ pending_book.title }}"?</strong><br>
+                    <a href="{% url 'users:login' %}?next={% url 'books:detail' pending_book.slug %}" 
+                    class="alert-link">Log in</a> or 
+                    <a href="{% url 'users:register' %}?next={% url 'books:detail' pending_book.slug %}" 
+                    class="alert-link">create an account</a> 
+                    to write a review and add it to your library!
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    {% endif %}
+
     <!-- ======================================================================
          MAIN CONTENT
     ====================================================================== -->
