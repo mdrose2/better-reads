@@ -230,14 +230,14 @@
             {% endif %}
         </div>
 
-        {% if not user.is_authenticated and book.reviews.count == 0 %}
+        {% if not user.is_authenticated %}
             <div class="alert alert-info d-flex align-items-center mb-4">
                 <i class="bi bi-info-circle-fill me-3 fs-4"></i>
                 <div>
-                    <strong>Love this book?</strong> 
-                    <a href="{% url 'users:login' %}" class="alert-link">Log in</a> or 
-                    <a href="{% url 'users:register' %}" class="alert-link">create an account</a> 
-                    to be the first to write a review!
+                    <strong>Want to share your thoughts?</strong> 
+                    <a href="{% url 'users:login' %}?next={% url 'books:detail' book.slug %}" class="alert-link">Log in</a> or 
+                    <a href="{% url 'users:register' %}?next={% url 'books:detail' book.slug %}" class="alert-link">create an account</a> 
+                    to write a review and add books to your library!
                 </div>
             </div>
         {% endif %}

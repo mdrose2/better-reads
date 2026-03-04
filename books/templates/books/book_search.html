@@ -132,14 +132,21 @@
                         <div class="card-footer bg-transparent border-0 pb-3">
                             {% if book.in_database %}
                                 <a href="{% url 'books:detail' book.database_id %}" 
-                                   class="btn btn-outline-success w-100">
+                                class="btn btn-outline-success w-100">
                                     <i class="bi bi-eye me-2"></i>View in Library
                                 </a>
                             {% else %}
-                                <a href="{% url 'books:add-from-api' book.google_books_id %}" 
-                                   class="btn btn-success w-100">
-                                    <i class="bi bi-plus-circle me-2"></i>Add to Library
-                                </a>
+                                {% if user.is_authenticated %}
+                                    <a href="{% url 'books:add-from-api' book.google_books_id %}" 
+                                    class="btn btn-success w-100">
+                                        <i class="bi bi-plus-circle me-2"></i>Add to Library
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'users:login' %}?next={% url 'books:add-from-api' book.google_books_id %}" 
+                                    class="btn btn-outline-success w-100">
+                                        <i class="bi bi-box-arrow-in-right me-2"></i>Log in to Add
+                                    </a>
+                                {% endif %}
                             {% endif %}
                         </div>
                         
