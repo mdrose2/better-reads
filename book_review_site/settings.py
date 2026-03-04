@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-ay*%6nuktf1gpt#6%q7n1)nc(s9s$7a7!m1r+%z7avb(%z$b$1'
 DEBUG = True
-ALLOWED_HOSTS = ['yourusername.pythonanywhere.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['mdrose2.pythonanywhere.com', '127.0.0.1', 'localhost']
 
 # ==============================================================================
 # APPLICATION DEFINITION

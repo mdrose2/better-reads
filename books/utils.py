@@ -1,27 +1,35 @@
 """
 Google Books API integration utilities.
 
-This module provides a clean interface for interacting with the Google Books API,
-handling authentication, data parsing, and error management.
+This module provides a robust interface for interacting with the Google Books API,
+handling authentication, data parsing, rate limiting, and caching.
 """
 
 import requests
-from django.conf import settings
-from datetime import datetime
+import time
+import random
 import logging
+from django.conf import settings
+from datetime import datetime, timedelta
+from functools import lru_cache
 
-# Set up logging for API interactions
 logger = logging.getLogger(__name__)
+
+# Simple in-memory cache for search results to reduce API calls
+_search_cache = {}
+_cache_time = {}
 
 
 class GoogleBooksAPI:
     """
     Utility class for interacting with the Google Books API.
     
-    This class handles all communication with the Google Books API, including:
-    - Searching for books by query string
-    - Fetching specific books by Google Books ID
-    - Parsing API responses into a format compatible with the Book model
+    Features:
+    - Search for books by query string
+    - Fetch specific books by Google Books ID
+    - Parse API responses into Book model format
+    - Exponential backoff retry logic for rate limiting
+    - Result caching to minimize API usage
     
     Attributes:
         BASE_URL (str): The base URL for the Google Books API v1 endpoint.
@@ -36,14 +44,18 @@ class GoogleBooksAPI:
         if not self.api_key:
             logger.warning("Google Books API key is not configured")
     
-    def search_books(self, query, max_results=20):
+    def search_books(self, query, max_results=20, max_retries=3):
         """
-        Search for books by title, author, or ISBN.
+        Search for books with caching and exponential backoff retry logic.
+        
+        Handles IP-based rate limiting gracefully by retrying with delays.
+        Caches successful results for 10 minutes to reduce API calls.
         
         Args:
             query (str): Search query (title, author, ISBN, etc.)
-            max_results (int): Maximum number of results to return (default: 20, max: 40)
-        
+            max_results (int): Maximum number of results to return
+            max_retries (int): Number of retry attempts for rate limiting
+            
         Returns:
             list: List of book items from the API, or empty list if search fails.
         """
@@ -51,6 +63,75 @@ class GoogleBooksAPI:
             logger.warning("Empty search query provided")
             return []
         
+        # Check cache first (10-minute cache to reduce API calls)
+        cache_key = f"{query}_{max_results}"
+        if cache_key in _search_cache:
+            cache_age = datetime.now() - _cache_time.get(cache_key, datetime.now())
+            if cache_age < timedelta(minutes=10):
+                logger.info(f"Returning cached results for: {query}")
+                return _search_cache[cache_key]
+        
+        # Implement exponential backoff retry logic
+        for attempt in range(max_retries):
+            try:
+                # Add jitter to avoid synchronized retries
+                time.sleep(random.uniform(0.5, 1.5) * (attempt + 1))
+                
+                results = self._make_api_call(query, max_results)
+                
+                # Cache successful results
+                _search_cache[cache_key] = results
+                _cache_time[cache_key] = datetime.now()
+                
+                return results
+                
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429:
+                    if attempt < max_retries - 1:
+                        # Exponential backoff: wait longer between each retry
+                        wait_time = (2 ** attempt) + random.uniform(0, 1)
+                        logger.warning(
+                            f"Rate limited (attempt {attempt + 1}). "
+                            f"Waiting {wait_time:.1f}s..."
+                        )
+                        time.sleep(wait_time)
+                    else:
+                        logger.error("Max retries exceeded for rate limit")
+                        return []
+                else:
+                    # Re-raise other HTTP errors
+                    logger.error(f"HTTP error from Google Books API: {e}")
+                    raise
+                    
+            except requests.exceptions.Timeout:
+                logger.error("Google Books API request timed out")
+                if attempt == max_retries - 1:
+                    return []
+                    
+            except requests.exceptions.ConnectionError:
+                logger.error("Failed to connect to Google Books API")
+                if attempt == max_retries - 1:
+                    return []
+                    
+            except Exception as e:
+                logger.error(f"Unexpected error in API call: {e}")
+                if attempt == max_retries - 1:
+                    return []
+    
+    def _make_api_call(self, query, max_results):
+        """
+        Execute the actual API call to Google Books.
+        
+        Args:
+            query (str): Search query
+            max_results (int): Maximum results to return
+            
+        Returns:
+            list: Raw book items from the API response
+            
+        Raises:
+            requests.exceptions.RequestException: For network/HTTP errors
+        """
         endpoint = f"{self.BASE_URL}/volumes"
         params = {
             'q': query.strip(),
@@ -60,28 +141,14 @@ class GoogleBooksAPI:
             'projection': 'full'
         }
         
-        try:
-            logger.debug(f"Searching books with query: {query}")
-            response = requests.get(endpoint, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            items = data.get('items', [])
-            logger.info(f"Found {len(items)} results for query: {query}")
-            return items
-            
-        except requests.exceptions.Timeout:
-            logger.error("Google Books API request timed out")
-            return []
-        except requests.exceptions.ConnectionError:
-            logger.error("Failed to connect to Google Books API")
-            return []
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error from Google Books API: {e}")
-            return []
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Unexpected error calling Google Books API: {e}")
-            return []
+        logger.debug(f"Making API call for query: {query}")
+        response = requests.get(endpoint, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        items = data.get('items', [])
+        logger.info(f"Found {len(items)} results for query: {query}")
+        return items
     
     def get_book_by_id(self, google_books_id):
         """
@@ -107,7 +174,7 @@ class GoogleBooksAPI:
             return response.json()
             
         except requests.exceptions.HTTPError as e:
-            if response.status_code == 404:
+            if e.response.status_code == 404:
                 logger.info(f"Book not found with ID: {google_books_id}")
             else:
                 logger.error(f"HTTP error fetching book {google_books_id}: {e}")
@@ -118,7 +185,7 @@ class GoogleBooksAPI:
     
     def parse_book_data(self, api_data):
         """
-        Convert Google Books API response into a format compatible with Book model.
+        Convert Google Books API response into Book model format.
         
         Args:
             api_data (dict): Raw JSON response from Google Books API for a single book.
@@ -139,12 +206,11 @@ class GoogleBooksAPI:
         date_str = volume_info.get('publishedDate')
         if date_str:
             try:
-                # Handle different date formats from Google Books
-                if len(date_str) == 4:  # Just year
+                if len(date_str) == 4:      # Just year
                     published_date = datetime.strptime(date_str, '%Y').date()
-                elif len(date_str) == 7:  # Year-month
+                elif len(date_str) == 7:    # Year-month
                     published_date = datetime.strptime(date_str, '%Y-%m').date()
-                else:  # Full date
+                else:                       # Full date
                     published_date = datetime.strptime(date_str, '%Y-%m-%d').date()
             except ValueError as e:
                 logger.warning(f"Could not parse date '{date_str}': {e}")
@@ -199,7 +265,7 @@ class GoogleBooksAPI:
     
     def is_valid_isbn(self, isbn):
         """
-        Simple validation for ISBN format (basic check).
+        Simple validation for ISBN format.
         
         Args:
             isbn (str): ISBN string to validate.
