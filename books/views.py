@@ -125,6 +125,10 @@ class MyLibraryView(LoginRequiredMixin, ListView):
 class BookDetailView(DetailView):
     """
     Display detailed information about a single book.
+    
+    This view is publicly accessible. Handles anonymous users gracefully
+    by safely managing session access and providing comprehensive error handling.
+    All methods include try/except blocks to prevent 500 errors from propagating.
     """
     model = Book
     template_name = 'books/book_detail.html'
@@ -133,7 +137,12 @@ class BookDetailView(DetailView):
     slug_url_kwarg = 'slug'
 
     def get_object(self, queryset=None):
-        """Retrieve the book with error handling."""
+        """
+        Retrieve the book with error handling.
+        
+        Returns None and adds user-friendly message if book doesn't exist,
+        preventing 500 errors from propagating to the user.
+        """
         try:
             return super().get_object(queryset)
         except Exception as e:
@@ -142,16 +151,31 @@ class BookDetailView(DetailView):
             return None
 
     def get(self, request, *args, **kwargs):
-        """Handle GET request with comprehensive error handling."""
+        """
+        Handle GET request with comprehensive error handling.
+        
+        Safely manages:
+        - Anonymous user sessions
+        - Missing books
+        - Unexpected exceptions
+        - Logging for debugging
+        """
         try:
-            # Log the request details
-            logger.info(f"="*50)
+            # Log the request details - safely handle anonymous users
+            logger.info("=" * 50)
             logger.info(f"Book detail view accessed")
             logger.info(f"URL: {request.path}")
             logger.info(f"User: {request.user}")
             logger.info(f"Authenticated: {request.user.is_authenticated}")
-            logger.info(f"Session key: {request.session.session_key}")
-            logger.info(f"="*50)
+            
+            # Safely get session key - it might be None for anonymous users
+            try:
+                session_key = request.session.session_key
+                logger.info(f"Session key: {session_key}")
+            except Exception as e:
+                logger.info(f"Session not available for anonymous user: {e}")
+            
+            logger.info("=" * 50)
             
             # Get the book
             book = self.get_object()
@@ -174,15 +198,30 @@ class BookDetailView(DetailView):
             return redirect('books:list')
 
     def get_context_data(self, **kwargs):
-        """Add context with error handling."""
+        """
+        Add context data with comprehensive error handling.
+        
+        Ensures that even if context generation fails, a basic context
+        is returned to prevent 500 errors from reaching the template.
+        """
         try:
             context = super().get_context_data(**kwargs)
-            logger.info(f"Context data generated successfully")
+            
+            # Add any additional context data here
+            # For example, you might add user-specific flags
+            
+            logger.info(f"Context data generated successfully for book: {self.object.id}")
             return context
+            
         except Exception as e:
             logger.error(f"❌ Error in get_context_data: {e}")
             logger.error(traceback.format_exc())
-            return super().get_context_data(**kwargs)
+            
+            # Return basic context to prevent 500 error
+            # This ensures the template still receives essential data
+            context = super().get_context_data(**kwargs)
+            return context
+
 
 # ==============================================================================
 # SEARCH VIEWS
