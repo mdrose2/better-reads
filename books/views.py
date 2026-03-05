@@ -619,20 +619,3 @@ class IndieBookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     def get_success_url(self):
         """Redirect to search page after deletion."""
         return reverse_lazy('books:search')
-
-
-# ==============================================================================
-# TEST VIEW FOR ANONYMOUS USERS
-# ==============================================================================
-
-class TestAnonymousView(TemplateView):
-    """
-    Simple test view to verify anonymous access works.
-    Remove this after debugging.
-    """
-    template_name = 'books/test_anonymous.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['message'] = "This view works for anonymous users!"
-        return context
