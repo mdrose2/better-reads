@@ -293,6 +293,17 @@
         {% endif %}
         
     </div> <!-- end reviews section -->
+
+    <!-- ======================================================================
+        SEARCH CALL TO ACTION
+    ====================================================================== -->
+    <div class="text-center my-5 py-4 bg-light rounded">
+        <h4 class="mb-3">Didn't find what you were looking for?</h4>
+        <p class="text-muted mb-3">Explore thousands of books in our collection.</p>
+        <a href="{% url 'books:search' %}" class="btn btn-success btn-lg">
+            <i class="bi bi-search me-2"></i>Search for Books
+        </a>
+    </div> <!-- end CTA section -->
     
 </div> <!-- end container -->
 {% endblock %}

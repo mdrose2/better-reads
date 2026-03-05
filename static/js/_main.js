@@ -27,6 +27,8 @@ const BetterReads = {
         this.initMobileMenu();
         this.initBackToTop();
         this.initEqualHeights(); 
+        this.initPasswordToggles();
+        this.initPasswordFields();
     },
     
     // =========================================================================
@@ -158,6 +160,66 @@ const BetterReads = {
                 if (featuredContainer) equalizeCardHeights(featuredContainer);
                 if (reviewsContainer) equalizeCardHeights(reviewsContainer);
             }, 250);
+        });
+    },
+
+        /**
+     * Initialize password field enhancements
+     * - Clears errors when user types
+     * - Handles password toggling
+     */
+    initPasswordFields: function() {
+        // Find all password fields
+        document.querySelectorAll('input[type="password"]').forEach(passwordField => {
+            
+            // Clear errors on input
+            passwordField.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+                
+                // Find and hide any error feedback in the same form group
+                const formGroup = this.closest('.mb-3, .form-group');
+                if (formGroup) {
+                    const errorDiv = formGroup.querySelector('.invalid-feedback, .alert-danger');
+                    if (errorDiv) {
+                        errorDiv.style.display = 'none';
+                        errorDiv.textContent = '';
+                    }
+                }
+            });
+            
+            // Remove error styling on focus
+            passwordField.addEventListener('focus', function() {
+                this.classList.remove('is-invalid');
+            });
+        });
+        
+        // Also handle Django messages (alerts) auto-dismiss
+        this.initAutoDismissAlerts();
+    },
+    
+    /**
+     * Initialize password toggle buttons
+     */
+    initPasswordToggles: function() {
+        document.querySelectorAll('[data-password-toggle]').forEach(button => {
+            const targetId = button.getAttribute('data-password-toggle');
+            const passwordField = document.getElementById(targetId);
+            
+            if (passwordField) {
+                button.addEventListener('click', function() {
+                    const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordField.setAttribute('type', type);
+                    
+                    const icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('bi-eye');
+                        icon.classList.toggle('bi-eye-slash');
+                    }
+                    
+                    // Keep focus on the password field after toggling
+                    passwordField.focus();
+                });
+            }
         });
     },
     

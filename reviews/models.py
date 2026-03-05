@@ -143,11 +143,14 @@ class Review(models.Model):
     def is_edited(self):
         """
         Check if the review has been edited after creation.
-        
-        Returns:
-            bool: True if updated_at differs from created_at
+        Adds a small buffer (1 second) to prevent false positives on initial save.
         """
-        return self.updated_at > self.created_at
+        if not self.pk:  # New review, not yet saved
+            return False
+        
+        # Small buffer to account for database timing
+        time_diff = self.updated_at - self.created_at
+        return time_diff.total_seconds() > 1  
     
     # =========================================================================
     # SLUG GENERATION

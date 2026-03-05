@@ -100,10 +100,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     showError(this, 'Username is required');
                 } else if (value.length < 3) {
                     showError(this, 'Username must be at least 3 characters');
+                } else if (value.length > 20) {
+                    showError(this, 'Username cannot exceed 20 characters');
                 } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
                     showError(this, 'Only letters, numbers, and underscores allowed');
+                    this.setCustomValidity('Invalid character'); // HTML5 validation
                 } else {
                     clearError(this);
+                    this.setCustomValidity(''); // Clear HTML5 validation
                 }
             });
         }
