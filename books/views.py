@@ -17,7 +17,7 @@ from django.views.generic import ListView, DetailView, TemplateView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib import messages
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .models import Book
 from .utils import GoogleBooksAPI
@@ -127,7 +127,8 @@ class BookDetailView(DetailView):
     Display detailed information about a single book.
     
     This view is publicly accessible. Handles anonymous users gracefully
-    by safely managing session access and providing appropriate error handling.
+    by safely managing session access and providing comprehensive error handling.
+    All methods include try/except blocks to prevent 500 errors from propagating.
     """
     model = Book
     template_name = 'books/book_detail.html'
@@ -136,7 +137,12 @@ class BookDetailView(DetailView):
     slug_url_kwarg = 'slug'
 
     def get_object(self, queryset=None):
-        """Retrieve the book with error handling."""
+        """
+        Retrieve the book with error handling.
+        
+        Returns None and adds user-friendly message if book doesn't exist,
+        preventing 500 errors from propagating to the user.
+        """
         try:
             return super().get_object(queryset)
         except Exception as e:
@@ -145,21 +151,28 @@ class BookDetailView(DetailView):
             return None
 
     def get(self, request, *args, **kwargs):
-        """Handle GET request with comprehensive error handling."""
+        """
+        Handle GET request with comprehensive error handling.
+        
+        Safely manages:
+        - Anonymous user sessions
+        - Missing books
+        - Unexpected exceptions
+        - Logging for debugging
+        """
         try:
             # Log the request details - safely handle anonymous users
             logger.info("=" * 50)
             logger.info(f"Book detail view accessed")
             logger.info(f"URL: {request.path}")
-            logger.info(f"User: {request.user}")
-            logger.info(f"Authenticated: {request.user.is_authenticated}")
+            logger.info(f"User authenticated: {request.user.is_authenticated if hasattr(request, 'user') else 'Unknown'}")
             
             # Safely get session key - it might be None for anonymous users
             try:
-                session_key = request.session.session_key
+                session_key = request.session.session_key if hasattr(request, 'session') else None
                 logger.info(f"Session key: {session_key}")
             except Exception as e:
-                logger.info(f"Session not available for anonymous user: {e}")
+                logger.info(f"Session not available: {e}")
             
             logger.info("=" * 50)
             
@@ -170,7 +183,13 @@ class BookDetailView(DetailView):
             
             # Log book details
             logger.info(f"Book found: {book.id} - {book.title}")
-            logger.info(f"Review count: {book.review_count()}")
+            
+            # Safely get review count
+            try:
+                review_count = book.review_count()
+                logger.info(f"Review count: {review_count}")
+            except Exception as e:
+                logger.error(f"Error getting review_count: {e}")
             
             # Try to render
             response = super().get(request, *args, **kwargs)
@@ -179,22 +198,33 @@ class BookDetailView(DetailView):
             
         except Exception as e:
             logger.error(f"❌ ERROR in BookDetailView.get: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Error args: {e.args}")
             logger.error(traceback.format_exc())
+            
+            # Show a friendly error page instead of 500
             messages.error(request, "An error occurred while loading this book.")
             return redirect('books:list')
 
     def get_context_data(self, **kwargs):
-        """Add context with error handling."""
+        """
+        Add context with comprehensive error handling.
+        
+        Ensures that even if context generation fails, a basic context
+        is returned to prevent 500 errors from reaching the template.
+        """
         try:
             context = super().get_context_data(**kwargs)
-            logger.info(f"Context data generated successfully")
+            logger.info(f"Context data generated successfully for book: {self.object.id if hasattr(self, 'object') else 'Unknown'}")
             return context
         except Exception as e:
             logger.error(f"❌ Error in get_context_data: {e}")
             logger.error(traceback.format_exc())
             # Return basic context to prevent 500 error
-            context = super().get_context_data(**kwargs)
-            return context
+            try:
+                return super().get_context_data(**kwargs)
+            except:
+                return {}
 
 
 # ==============================================================================
@@ -407,6 +437,7 @@ class BookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         """Add success message after successful update."""
         messages.success(
             self.request,
+            f'<i class="bi bi-check-circle me-2"></i> '
             f'"{self.object.title}" has been updated successfully!'
         )
         return super().form_valid(form)
@@ -414,7 +445,8 @@ class BookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def get_success_url(self):
         """Redirect to book detail page after successful update."""
         return reverse_lazy('books:detail', kwargs={'slug': self.object.slug})
-    
+
+
 class BookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     """
     Delete a book (superusers only).
@@ -587,3 +619,20 @@ class IndieBookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     def get_success_url(self):
         """Redirect to search page after deletion."""
         return reverse_lazy('books:search')
+
+
+# ==============================================================================
+# TEST VIEW FOR ANONYMOUS USERS
+# ==============================================================================
+
+class TestAnonymousView(TemplateView):
+    """
+    Simple test view to verify anonymous access works.
+    Remove this after debugging.
+    """
+    template_name = 'books/test_anonymous.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['message'] = "This view works for anonymous users!"
+        return context

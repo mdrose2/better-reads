@@ -265,18 +265,41 @@ class Book(models.Model):
     def average_rating(self):
         """
         Calculate the average rating for this book from all reviews.
-        Returns None if no reviews exist.
+        Returns None if no reviews exist or if an error occurs.
         """
-        reviews = self.reviews.all()
-        if not reviews:
-            return None
-        
-        total = sum(review.rating for review in reviews)
-        return round(total / len(reviews), 1)
-    
+        try:
+            # Safely get all reviews
+            reviews = self.reviews.all()
+            if not reviews:
+                return None
+            
+            # Safely calculate total
+            total = 0
+            count = 0
+            for review in reviews:
+                try:
+                    if review.rating is not None:
+                        total += float(review.rating)
+                        count += 1
+                except (TypeError, ValueError):
+                    continue
+            
+            if count == 0:
+                return None
+            
+            return round(total / count, 1)
+        except Exception as e:
+        # Log the error but don't crash
+        logger.error(f"Error in average_rating for book {self.id}: {e}")
+        return None
+
     def review_count(self):
         """Return the total number of reviews for this book."""
-        return self.reviews.count()
+        try:
+            return self.reviews.count()
+        except Exception as e:
+            logger.error(f"Error in review_count for book {self.id}: {e}")
+            return 0
     
     def is_from_api(self):
         """Return True if this book was imported from Google Books API."""
