@@ -69,13 +69,14 @@
 </div>
 
 <!-- ======================================================================
-     FEATURED BOOKS SECTION
+     FEATURED BOOKS SECTION - SAFER VERSION
 ====================================================================== -->
 {% if featured_books %}
 <div class="container my-5">
     <h2 class="text-center mb-4">Featured Books</h2>
     <div class="row g-4">
         {% for book in featured_books %}
+            {% if book and book.slug %}  <!-- Safety check -->
             <div class="col-md-4 col-lg-2">
                 <div class="card h-100 shadow-sm">
                     
@@ -101,11 +102,11 @@
                         </p>
                         
                         <!-- Review Stats -->
-                        {% if book.review_count > 0 %}
+                        {% if book.review_count and book.review_count > 0 %}
                             <p class="card-text small mb-2">
                                 <span class="text-warning">
                                     <i class="bi bi-star-fill me-1"></i>
-                                    {{ book.average_rating }}
+                                    {{ book.average_rating|default:"0" }}
                                 </span>
                                 <span class="text-muted mx-1">•</span>
                                 <span class="text-muted">
@@ -141,19 +142,21 @@
                     
                 </div>
             </div>
+            {% endif %}
         {% endfor %}
     </div>
 </div>
 {% endif %}
 
 <!-- ======================================================================
-     RECENT REVIEWS SECTION
+     RECENT REVIEWS SECTION - SAFER VERSION
 ====================================================================== -->
 {% if recent_reviews %}
 <div class="container my-5">
     <h2 class="text-center mb-4">Recent Reviews</h2>
     <div class="row g-4">
         {% for review in recent_reviews %}
+            {% if review and review.user and review.book and review.book.slug %}  <!-- Safety check -->
             <div class="col-md-6">
                 <div class="card review-card shadow-sm h-100">
                     <div class="card-body d-flex flex-column">
@@ -223,6 +226,7 @@
                     
                 </div>
             </div>
+            {% endif %}
         {% endfor %}
     </div>
 </div>
