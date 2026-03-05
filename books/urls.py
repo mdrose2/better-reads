@@ -20,6 +20,13 @@ urlpatterns = [
     path('my-library/', 
          views.MyLibraryView.as_view(), 
          name='my-library'),
+
+    # ==========================================================================
+    # INDIE BOOK SUBMISSIONS (Requires login)
+    # ==========================================================================
+    path('add/indie/', 
+         views.IndieBookCreateView.as_view(), 
+         name='add-indie'),
     
     # ==========================================================================
     # SEARCH & DISCOVERY
@@ -31,13 +38,6 @@ urlpatterns = [
     path('add/<str:google_books_id>/', 
          views.AddBookFromAPIMixin.as_view(), 
          name='add-from-api'),
-    
-    # ==========================================================================
-    # INDIE BOOK SUBMISSIONS (Requires login)
-    # ==========================================================================
-    path('add/indie/', 
-         views.IndieBookCreateView.as_view(), 
-         name='add-indie'),
     
     # ==========================================================================
     # BOOK DETAIL & MANAGEMENT
