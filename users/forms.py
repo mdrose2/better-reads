@@ -46,8 +46,8 @@ class CustomUserCreationForm(UserCreationForm):
         label='Password',
         widget=forms.PasswordInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Create a password'
-            'id': 'id_password1'
+            'placeholder': 'Create a password',
+            'id': 'id_password1',
         })
     )
     
@@ -55,8 +55,8 @@ class CustomUserCreationForm(UserCreationForm):
         label='Confirm Password',
         widget=forms.PasswordInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Confirm your password'
-            'id': 'id_password2'
+            'placeholder': 'Confirm your password',
+            'id': 'id_password2',
         })
     )
     
