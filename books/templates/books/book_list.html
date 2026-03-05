@@ -1,3 +1,4 @@
+<!-- books/templates/books/book_list.html -->
 {% extends '_base.html' %}
 
 {% block title %}{{ page_title }} - Better Reads{% endblock %}
@@ -19,11 +20,12 @@
     </div>
     
     <!-- ======================================================================
-         BOOK GRID
+         BOOK GRID - WITH SAFETY CHECKS
     ====================================================================== -->
     {% if books %}
         <div class="row g-4">
             {% for book in books %}
+                {% if book and book.slug %}  <!-- Safety check: only show books with valid slugs -->
                 <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
                     
                     <!-- BOOK CARD -->
@@ -57,17 +59,17 @@
                                 {{ book.authors|join:", "|truncatechars:30 }}
                             </p>
                             
-                            <!-- Review Stats -->
-                            {% if book.review_count > 0 %}
+                            <!-- Review Stats - with safety checks -->
+                            {% if book.review_count and book.review_count > 0 %}
                                 <p class="card-text small mb-2">
                                     <span class="text-warning">
                                         <i class="bi bi-star-fill me-1"></i>
-                                        {{ book.average_rating }}
+                                        {{ book.average_rating|default:"0" }}
                                     </span>
                                     <span class="text-muted mx-1">•</span>
                                     <span class="text-muted">
                                         <i class="bi bi-chat me-1"></i>
-                                        {{ book.review_count }} review{{ book.review_count|pluralize }}
+                                        {{ book.review_count }}
                                     </span>
                                 </p>
                             {% else %}
@@ -78,17 +80,11 @@
                             {% endif %}
                             
                             <!-- Personal Library Indicator (for My Library view) -->
-                            {% if is_personal_library %}
+                            {% if is_personal_library and book.added_by %}
                                 <p class="card-text small text-muted mb-2">
-                                    {% if book.added_by == user %}
-                                        <span class="badge bg-success-subtle text-success-emphasis">
-                                            <i class="bi bi-heart-fill me-1"></i>You added this
-                                        </span>
-                                    {% elif book.reviews.all and book.reviews.first.user == user %}
-                                        <span class="badge bg-primary-subtle text-primary-emphasis">
-                                            <i class="bi bi-star-fill me-1"></i>You reviewed this
-                                        </span>
-                                    {% endif %}
+                                    <span class="badge bg-success-subtle text-success-emphasis">
+                                        <i class="bi bi-heart-fill me-1"></i>You added this
+                                    </span>
                                 </p>
                             {% endif %}
                             
@@ -100,12 +96,12 @@
                         <div class="card-footer bg-transparent border-0 pb-3 pt-0">
                             {% if user.is_authenticated %}
                                 <a href="{% url 'books:detail' book.slug %}" 
-                                class="btn btn-outline-success w-100">
+                                   class="btn btn-outline-success w-100">
                                     <i class="bi bi-eye me-2"></i>View
                                 </a>
                             {% else %}
                                 <a href="{% url 'users:login' %}?next={% url 'books:detail' book.slug %}" 
-                                class="btn btn-outline-success w-100">
+                                   class="btn btn-outline-success w-100">
                                     <i class="bi bi-box-arrow-in-right me-2"></i>Login to View
                                 </a>
                             {% endif %}
@@ -114,6 +110,7 @@
                     </div> <!-- end book card -->
                     
                 </div> <!-- end column -->
+                {% endif %} <!-- end book safety check -->
             {% endfor %}
         </div> <!-- end book grid -->
         
