@@ -521,14 +521,7 @@ class IndieBookCreateView(LoginRequiredMixin, CreateView):
         # Track who added this book
         form.instance.added_by = self.request.user
         form.instance.is_indie = True
-
-        # Parse comma-separated authors into JSON list
-        authors_str = form.cleaned_data.get('authors', '')
-        if authors_str:
-            form.instance.authors = [
-                a.strip() for a in authors_str.split(',') if a.strip()
-            ]
-
+        
         messages.success(
             self.request,
             f'✨ "{form.instance.title}" has been added to the library! '
@@ -567,14 +560,7 @@ class IndieBookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return Book.objects.filter(is_indie=True)
 
     def form_valid(self, form):
-        """Parse authors and add success message."""
-        # Parse comma-separated authors into JSON list
-        authors_str = form.cleaned_data.get('authors', '')
-        if authors_str:
-            form.instance.authors = [
-                a.strip() for a in authors_str.split(',') if a.strip()
-            ]
-
+        """Add success message after successful update."""
         messages.success(self.request, 'Book updated successfully!')
         return super().form_valid(form)
 

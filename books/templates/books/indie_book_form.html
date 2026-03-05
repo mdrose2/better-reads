@@ -59,13 +59,17 @@
                                     {% endif %}
                                 </label>
                                 
-                                <!-- Field Input with Icons -->
+                                <!-- Field Input with appropriate styling -->
                                 {% if field.name == 'authors' %}
                                     <div class="input-group">
                                         <span class="input-group-text bg-light">
                                             <i class="bi bi-pencil"></i>
                                         </span>
                                         {{ field }}
+                                    </div>
+                                    <div class="form-text text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Separate multiple authors with commas. Example: "Jane Austen, Charlotte Brontë"
                                     </div>
                                     
                                 {% elif field.name == 'isbn_13' %}
@@ -89,8 +93,8 @@
                                     {{ field }}
                                 {% endif %}
                                 
-                                <!-- Help Text -->
-                                {% if field.help_text %}
+                                <!-- Help Text (non-field-specific) -->
+                                {% if field.help_text and field.name != 'authors' %}
                                     <div class="form-text text-muted">{{ field.help_text }}</div>
                                 {% endif %}
                                 

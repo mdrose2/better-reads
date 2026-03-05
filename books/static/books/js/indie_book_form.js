@@ -73,7 +73,7 @@
         }
         
         // =====================================================================
-        // AUTHORS VALIDATION
+        // AUTHORS VALIDATION - UPDATED FOR COMMA-SEPARATED INPUT
         // =====================================================================
         
         if (authors) {
@@ -82,10 +82,30 @@
                 
                 if (value.length === 0) {
                     showError(this, 'At least one author is required');
-                } else if (value.length < 2) {
-                    showError(this, 'Author name must be at least 2 characters');
                 } else {
-                    clearError(this);
+                    // Split by commas and check each part
+                    const authorList = value.split(',').map(a => a.trim()).filter(a => a.length > 0);
+                    
+                    if (authorList.length === 0) {
+                        showError(this, 'Please enter at least one valid author name');
+                    } else {
+                        // Check each author name is reasonable
+                        const hasValidAuthor = authorList.some(author => author.length >= 2);
+                        if (!hasValidAuthor) {
+                            showError(this, 'Each author name must be at least 2 characters');
+                        } else {
+                            clearError(this);
+                            
+                            // Optional: Show preview of how authors will be stored
+                            let preview = this.parentElement.querySelector('.author-preview');
+                            if (!preview) {
+                                preview = document.createElement('small');
+                                preview.className = 'author-preview text-success d-block mt-1';
+                                this.parentElement.appendChild(preview);
+                            }
+                            preview.innerHTML = `<i class="bi bi-check-circle me-1"></i>Will be saved as: ${authorList.join(', ')}`;
+                        }
+                    }
                 }
             });
         }
@@ -137,12 +157,18 @@
                 }
             }
             
-            // Validate authors
+            // Validate authors (comma-separated format)
             if (authors) {
                 const authorsValue = authors.value.trim();
-                if (authorsValue.length < 2) {
-                    showError(authors, 'At least one valid author is required');
+                if (authorsValue.length === 0) {
+                    showError(authors, 'At least one author is required');
                     isValid = false;
+                } else {
+                    const authorList = authorsValue.split(',').map(a => a.trim()).filter(a => a.length > 0);
+                    if (authorList.length === 0) {
+                        showError(authors, 'Please enter at least one valid author name');
+                        isValid = false;
+                    }
                 }
             }
             

@@ -12,9 +12,19 @@ class IndieBookForm(forms.ModelForm):
     Form for users to add independent/indie books to the library.
     
     This form allows users to contribute books not found in the Google Books API.
-    Fields are intentionally limited to essential information to keep the
-    submission process simple and user-friendly.
+    The authors field accepts comma-separated text and is automatically
+    converted to JSON format for storage.
     """
+    
+    # Override the authors field to accept plain text
+    authors = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., "Patrick Rothfuss" or "Jane Austen, Charlotte Brontë"',
+            'required': True,
+        }),
+        help_text="For multiple authors, separate names with commas"
+    )
     
     class Meta:
         model = Book
@@ -35,11 +45,6 @@ class IndieBookForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'e.g., "The Name of the Wind"',
                 'autofocus': True,
-            }),
-            
-            'authors': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'e.g., "Patrick Rothfuss" or "Jane Austen, Charlotte Brontë"',
             }),
             
             'publisher': forms.TextInput(attrs={
@@ -81,39 +86,49 @@ class IndieBookForm(forms.ModelForm):
         # HELP TEXT
         # =====================================================================
         help_texts = {
-            'authors': 'Separate multiple authors with commas. Include first and last name.',
-            'isbn_13': '13-digit ISBN (optional but helpful for identification).',
-            'page_count': 'Total number of pages (optional).',
+            'publisher': 'Publisher name (optional)',
+            'isbn_13': '13-digit ISBN (optional but helpful for identification)',
+            'page_count': 'Total number of pages (optional)',
         }
     
     # =========================================================================
-    # CUSTOM VALIDATION
+    # CUSTOM VALIDATION AND DATA CONVERSION
     # =========================================================================
-    
-    def clean_title(self):
-        """Validate that the title is not just whitespace."""
-        title = self.cleaned_data.get('title')
-        if title and not title.strip():
-            raise forms.ValidationError("Book title cannot be empty.")
-        return title.strip()
     
     def clean_authors(self):
         """
-        Validate and clean author names.
-        Ensures at least one author is provided and formats properly.
+        Convert comma-separated author string to JSON-compatible list.
+        
+        This method:
+        1. Takes the plain text input from the form
+        2. Splits by commas
+        3. Strips whitespace from each author name
+        4. Returns a list (which will be stored as JSON)
         """
-        authors = self.cleaned_data.get('authors')
-        if not authors or not authors.strip():
+        authors_str = self.cleaned_data.get('authors', '')
+        
+        if not authors_str or not authors_str.strip():
             raise forms.ValidationError("At least one author is required.")
         
         # Split by commas and clean each author name
-        author_list = [a.strip() for a in authors.split(',') if a.strip()]
+        author_list = [a.strip() for a in authors_str.split(',') if a.strip()]
         
         if not author_list:
             raise forms.ValidationError("Please enter at least one valid author name.")
         
-        # Rejoin with proper formatting
-        return ', '.join(author_list)
+        # Log the conversion for debugging (optional)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Converted authors '{authors_str}' to list: {author_list}")
+        
+        return author_list  # Django will automatically serialize this to JSON
+    
+    def clean_title(self):
+        """Validate that the title is not just whitespace."""
+        title = self.cleaned_data.get('title')
+        if not title or not title.strip():
+            raise forms.ValidationError("Book title cannot be empty.")
+        return title.strip()
     
     def clean_isbn_13(self):
         """
