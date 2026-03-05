@@ -58,10 +58,17 @@
                             <label for="id_password" class="form-label fw-semibold">
                                 <i class="bi bi-lock me-1"></i>Password
                             </label>
-                            <input type="password" 
-                                   name="password" 
-                                   class="form-control" 
-                                   required>
+                            <div class="input-group">
+                                <input type="password" 
+                                    name="password" 
+                                    class="form-control" 
+                                    id="id_password"
+                                    required>
+                                <button class="btn btn-outline-secondary" type="button" 
+                                        data-password-toggle="id_password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         
                         <!-- Submit Button -->
