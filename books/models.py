@@ -289,9 +289,8 @@ class Book(models.Model):
             
             return round(total / count, 1)
         except Exception as e:
-        # Log the error but don't crash
-        logger.error(f"Error in average_rating for book {self.id}: {e}")
-        return None
+            logger.error(f"Error in average_rating for book {self.id}: {e}")
+            return None
 
     def review_count(self):
         """Return the total number of reviews for this book."""
