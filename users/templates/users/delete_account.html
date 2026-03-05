@@ -1,0 +1,48 @@
+<!-- users/templates/users/delete_account.html -->
+{% extends '_base.html' %}
+
+{% block title %}Delete Account - Better Reads{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Delete Account</h4>
+                </div>
+                
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Privacy-Preserving Deletion</strong>
+                        <p class="mb-0 mt-2">
+                            When you delete your account:
+                        </p>
+                        <ul class="mb-0 mt-2">
+                            <li>Your personal information (name, email, bio) is permanently removed</li>
+                            <li>Your reviews and book contributions remain to help the community</li>
+                            <li>They will be attributed to "deleted_user"</li>
+                            <li>You will not be able to log in again</li>
+                        </ul>
+                    </div>
+                    
+                    <p class="lead">Are you sure you want to delete your account?</p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'users:profile' user.username %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-2"></i>Yes, Delete My Account
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

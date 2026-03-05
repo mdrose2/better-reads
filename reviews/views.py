@@ -8,6 +8,9 @@ This module contains all view logic for review-related functionality including:
 - Permission handling for review authors
 """
 
+import traceback
+from venv import logger
+
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
@@ -87,18 +90,30 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
     form_class = ReviewForm
     template_name = 'reviews/review_form.html'
     
+    # books/views.py - Update the get_context_data method in BookDetailView
+
     def get_context_data(self, **kwargs):
         """
-        Add the book being reviewed to template context.
-        
-        Returns:
-            dict: Context with book object
+        Add context with comprehensive error handling.
+        Filters reviews to ensure proper display.
         """
-        context = super().get_context_data(**kwargs)
-        book_id = self.kwargs.get('book_id')
-        context['book'] = get_object_or_404(Book, id=book_id)
-        return context
-    
+        try:
+            context = super().get_context_data(**kwargs)
+            
+            # Add visible reviews (all reviews are visible, but we ensure they have proper display)
+            context['visible_reviews'] = self.object.reviews.all()
+            
+            logger.info(f"Context data generated successfully for book: {self.object.id}")
+            return context
+        except Exception as e:
+            logger.error(f"❌ Error in get_context_data: {e}")
+            logger.error(traceback.format_exc())
+            # Return basic context to prevent 500 error
+            try:
+                return super().get_context_data(**kwargs)
+            except:
+                return {}
+
     def form_valid(self, form):
         """
         Assign user and book to review, check for duplicates.

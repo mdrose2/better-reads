@@ -1,4 +1,3 @@
-# pages/views.py
 from django.views.generic import TemplateView
 from django.contrib.auth import get_user_model
 from books.models import Book
@@ -27,7 +26,6 @@ class HomePageView(TemplateView):
         # FEATURED CONTENT - with error handling
         # ======================================================================
         
-        # Recently added books (limit to 6 for grid layout)
         try:
             context['featured_books'] = Book.objects.all().order_by('-created_at')[:6]
             logger.info(f"Featured books loaded: {len(context['featured_books'])}")
@@ -35,7 +33,7 @@ class HomePageView(TemplateView):
             logger.error(f"Error loading featured books: {e}")
             context['featured_books'] = []
         
-        # Recent reviews with optimized queries
+        # Recent reviews - all reviews are visible
         try:
             context['recent_reviews'] = Review.objects.select_related(
                 'user', 'book'
@@ -62,7 +60,8 @@ class HomePageView(TemplateView):
             context['total_reviews'] = 0
         
         try:
-            context['total_users'] = User.objects.count()
+            # Count only active users (not anonymized)
+            context['total_users'] = User.objects.filter(is_anonymized=False).count()
         except Exception as e:
             logger.error(f"Error counting users: {e}")
             context['total_users'] = 0

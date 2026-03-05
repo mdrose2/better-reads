@@ -206,7 +206,7 @@
     </div> <!-- end main row -->
 
     <!-- ======================================================================
-         REVIEWS SECTION - SAFE FOR ANONYMOUS USERS
+     REVIEWS SECTION
     ====================================================================== -->
     <div class="mt-5">
         
@@ -246,8 +246,8 @@
         <!-- Reviews List -->
         {% if book.reviews.all %}
             {% for review in book.reviews.all %}
-                {% if review.user %}  <!-- Safety check: only show if review has a user -->
-                <div class="card mb-3 {% if user.is_authenticated and review.user.id == user.id %}border-success{% endif %}">
+                {% if review.user or review.user is None %}  <!-- Show all reviews, even from deleted users -->
+                <div class="card mb-3 {% if user.is_authenticated and review.user and review.user.id == user.id %}border-success{% endif %}">
                     <div class="card-body">
                         
                         <!-- Review Header: Title and Rating -->
@@ -256,10 +256,10 @@
                             <span class="text-warning">{{ review.get_star_rating }}</span>
                         </div>
                         
-                        <!-- Review Meta: Author and Date -->
+                        <!-- Review Meta: Author and Date - Using display_author property -->
                         <h6 class="card-subtitle mb-2 text-muted">
-                            By {{ review.user.username }} on {{ review.created_at|date:"F j, Y" }}
-                            {% if review.updated_at != review.created_at %}
+                            By {{ review.display_author }} on {{ review.created_at|date:"F j, Y" }}
+                            {% if review.is_edited %}
                                 <span class="text-muted">(edited)</span>
                             {% endif %}
                         </h6>
@@ -267,8 +267,8 @@
                         <!-- Review Content -->
                         <p class="card-text">{{ review.content|safe }}</p>
                         
-                        <!-- Review Actions (for review author only) -->
-                        {% if user.is_authenticated and review.user.id == user.id %}
+                        <!-- Review Actions (for review author only - only if user still exists) -->
+                        {% if user.is_authenticated and review.user and review.user.id == user.id %}
                             <div class="mt-2">
                                 <a href="{% url 'reviews:update' review.slug %}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil me-2"></i>Edit
@@ -281,7 +281,7 @@
                         
                     </div> <!-- end review card-body -->
                 </div> <!-- end review card -->
-                {% endif %}  <!-- End user check -->
+                {% endif %}
             {% endfor %}
             
         {% else %}

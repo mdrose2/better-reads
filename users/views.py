@@ -176,25 +176,30 @@ def edit_profile(request):
 # ACCOUNT MANAGEMENT
 # ==============================================================================
 
+# users/views.py
 @login_required
 def delete_account(request):
     """
-    Allow users to permanently delete their account.
+    Delete user account with privacy preservation.
     
-    Shows confirmation page before deletion.
-    All associated reviews will be deleted via CASCADE.
-    
-    Template: users/delete_account.html
+    Instead of hard-deleting the user, we anonymize all personal data
+    so the user's content (reviews, books) remains in the system
+    without identifying information.
     """
     if request.method == 'POST':
         user = request.user
+        
+        # Anonymize the account (preserves content, removes identity)
+        user.anonymize()
+        
         # Log the user out
         logout(request)
-        # Delete the account
-        user.delete()
+        
         messages.success(
             request,
-            'Your account has been permanently deleted.'
+            'Your account has been successfully deleted. '
+            'Your reviews and book contributions remain anonymously '
+            'to help the community.'
         )
         return redirect('pages:home')
     
