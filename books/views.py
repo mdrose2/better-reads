@@ -414,8 +414,7 @@ class BookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def get_success_url(self):
         """Redirect to book detail page after successful update."""
         return reverse_lazy('books:detail', kwargs={'slug': self.object.slug})
-
-
+    
 class BookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     """
     Delete a book (superusers only).

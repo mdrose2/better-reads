@@ -1,591 +1,296 @@
-"""
-View classes for the books app.
+{% extends '_base.html' %}
+{% load static %}
 
-This module contains all view logic for book-related functionality including:
-- Listing all books (community library)
-- Displaying personal library for logged-in users
-- Searching books via Google Books API
-- Viewing book details
-- Adding books from Google Books API
-- Managing indie book submissions
-- Admin book management (edit/delete)
-"""
+{% block title %}{{ book.title }} - Better Reads{% endblock %}
 
-import logging
-import traceback
-from django.views.generic import ListView, DetailView, TemplateView
-from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from django.urls import reverse_lazy
-from django.contrib import messages
-from django.shortcuts import redirect, get_object_or_404
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from .models import Book
-from .utils import GoogleBooksAPI
-from .forms import IndieBookForm
-from reviews.models import Review
-
-logger = logging.getLogger(__name__)
-
-
-# ==============================================================================
-# LIBRARY VIEWS
-# ==============================================================================
-
-class AllBooksListView(ListView):
-    """
-    Display ALL books in the library (community collection).
+{% block content %}
+<div class="container mt-4">
     
-    Shows every book added by any user or imported from API.
-    Visible to all users (authenticated or not).
-    
-    Template: books/book_list.html
-    Context: 
-        - 'books': All Book objects, paginated
-        - 'page_title': 'Library'
-        - 'is_personal_library': False
-    Pagination: 20 books per page
-    """
-    model = Book
-    template_name = 'books/book_list.html'
-    context_object_name = 'books'
-    paginate_by = 20
+    <!-- ======================================================================
+         BREADCRUMB NAVIGATION
+    ====================================================================== -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/" class="text-success text-decoration-none">Home</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'books:list' %}" class="text-success text-decoration-none">Library</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {{ book.title|truncatechars:30 }}
+            </li>
+        </ol>
+    </nav>
 
-    def get_queryset(self):
-        """Return all books, ordered by most recent."""
-        return Book.objects.all().order_by('-created_at')
-
-    def get_context_data(self, **kwargs):
-        """Add context to indicate this is the community library."""
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = 'Library'
-        context['is_personal_library'] = False
-        return context
-
-
-class MyLibraryView(LoginRequiredMixin, ListView):
-    """
-    Display books that the current user has interacted with.
-    
-    Shows:
-    - Books the user has added (indie books)
-    - Books the user has reviewed
-    
-    Only visible to authenticated users. Redirects to login if not authenticated.
-    
-    Template: books/book_list.html
-    Context:
-        - 'books': Filtered list of Book objects
-        - 'page_title': 'My Library'
-        - 'is_personal_library': True
-    Pagination: 20 books per page
-    """
-    model = Book
-    template_name = 'books/book_list.html'
-    context_object_name = 'books'
-    paginate_by = 20
-    login_url = reverse_lazy('users:login')
-
-    def get_queryset(self):
-        """
-        Return books added or reviewed by the current user.
+    <!-- ======================================================================
+         MAIN BOOK DETAILS
+    ====================================================================== -->
+    <div class="row">
         
-        Combines:
-        - Books where user is the added_by (indie books)
-        - Books the user has reviewed
-        """
-        user = self.request.user
+        <!-- LEFT COLUMN: BOOK COVER -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                {% if book.cover_image_url or book.thumbnail_url %}
+                    <img src="{{ book.cover_image_url|default:book.thumbnail_url }}" 
+                         class="card-img-top p-3" 
+                         alt="{{ book.title }}" 
+                         style="height: 400px; object-fit: contain;">
+                {% else %}
+                    <div class="bg-light d-flex align-items-center justify-content-center" style="height: 400px;">
+                        <i class="bi bi-book text-muted" style="font-size: 5rem;"></i>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
         
-        # Get books the user has reviewed
-        reviewed_book_ids = Review.objects.filter(
-            user=user
-        ).values_list('book_id', flat=True)
+        <!-- RIGHT COLUMN: BOOK INFORMATION -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    
+                    <!-- Book Title & Badges -->
+                    <h1 class="card-title mb-2">
+                        {{ book.title }}
+                        {% if book.is_indie %}
+                            <span class="badge bg-info ms-2">Indie Book</span>
+                        {% endif %}
+                    </h1>
+                    
+                    {% if book.subtitle %}
+                        <h5 class="text-muted mb-3">{{ book.subtitle }}</h5>
+                    {% endif %}
+                    
+                    <!-- Author -->
+                    <p class="lead mb-4">
+                        <i class="bi bi-pencil me-2"></i>
+                        by {{ book.authors|join:", " }}
+                    </p>
+
+                    <!-- Average Rating -->
+                    {% if book.review_count and book.review_count > 0 %}
+                        <div class="mb-3">
+                            <span class="badge bg-warning text-dark p-2">
+                                <i class="bi bi-star-fill me-1"></i>
+                                Average Rating: {{ book.average_rating }} / 5
+                                <span class="ms-1">({{ book.review_count }} review{{ book.review_count|pluralize }})</span>
+                            </span>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- METADATA GRID -->
+                    <div class="row g-3 mb-4">
+                        
+                        <!-- Left Column Metadata -->
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                {% if book.isbn_13 %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-upc-scan me-2"></i>ISBN-13:</span>
+                                    <span class="badge bg-light text-dark">{{ book.isbn_13 }}</span>
+                                </li>
+                                {% endif %}
+                                
+                                {% if book.isbn_10 %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-upc-scan me-2"></i>ISBN-10:</span>
+                                    <span class="badge bg-light text-dark">{{ book.isbn_10 }}</span>
+                                </li>
+                                {% endif %}
+                                
+                                {% if book.publisher %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-building me-2"></i>Publisher:</span>
+                                    <span class="badge bg-light text-dark">{{ book.publisher }}</span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        
+                        <!-- Right Column Metadata -->
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                {% if book.published_date %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-calendar me-2"></i>Published:</span>
+                                    <span class="badge bg-light text-dark">{{ book.published_date }}</span>
+                                </li>
+                                {% endif %}
+                                
+                                {% if book.page_count %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-file-text me-2"></i>Pages:</span>
+                                    <span class="badge bg-light text-dark">{{ book.page_count }}</span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Categories -->
+                    {% if book.categories %}
+                    <div class="mb-4">
+                        <h6><i class="bi bi-tags me-2"></i>Categories</h6>
+                        {% for category in book.categories %}
+                            <span class="badge bg-success me-1 mb-1 p-2">{{ category }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Description -->
+                    {% if book.description %}
+                    <div class="mb-4">
+                        <h6><i class="bi bi-file-text me-2"></i>Description</h6>
+                        <div class="bg-light p-3 rounded">
+                            {{ book.description|safe }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- ACTION BUTTONS: Primary Actions -->
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'books:list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Library
+                        </a>
+                        <a href="{% url 'books:search' %}" class="btn btn-success">
+                            <i class="bi bi-search me-2"></i>Find More Books
+                        </a>
+                    </div>
+                    
+                    <!-- ==============================================================
+                         ADMIN CONTROLS (Superusers Only)
+                    ============================================================== -->
+                    {% if user.is_authenticated and user.is_superuser %}
+                    <div class="mt-4 pt-3 border-top">
+                        <h6 class="text-muted mb-3">
+                            <i class="bi bi-shield-lock me-2"></i>Administrator Controls
+                        </h6>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'books:edit' book.slug %}" class="btn btn-outline-warning">
+                                <i class="bi bi-pencil me-2"></i>Edit Book
+                            </a>
+                            <a href="{% url 'books:delete' book.slug %}" class="btn btn-outline-danger">
+                                <i class="bi bi-trash me-2"></i>Delete Book
+                            </a>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            These controls are visible only to administrators.
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- ==============================================================
+                         INDIE BOOK CONTROLS (Book Creator Only)
+                    ============================================================== -->
+                    {% if user.is_authenticated and book.is_indie and book.added_by == user %}
+                    <div class="mt-3 pt-2">
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'books:edit-indie' book.slug %}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-pencil me-1"></i>Edit (Indie Book)
+                            </a>
+                            <a href="{% url 'books:delete-indie' book.slug %}" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-trash me-1"></i>Delete (Indie Book)
+                            </a>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-heart me-1"></i>
+                            You added this indie book to the library
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                </div> <!-- end card-body -->
+            </div> <!-- end book details card -->
+        </div> <!-- end right column -->
+    </div> <!-- end main row -->
+
+    <!-- ======================================================================
+         REVIEWS SECTION
+    ====================================================================== -->
+    <div class="mt-5">
         
-        # Get books the user has added (indie books)
-        added_book_ids = Book.objects.filter(
-            added_by=user
-        ).values_list('id', flat=True)
+        <!-- Section Header & Write Review Button -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>
+                <i class="bi bi-star me-2"></i>
+                Reviews
+                {% if book.review_count and book.review_count > 0 %}
+                    <span class="badge bg-secondary ms-2">{{ book.review_count }}</span>
+                {% endif %}
+            </h3>
+            
+            {% if user.is_authenticated %}
+                <a href="{% url 'reviews:create' book.id %}" class="btn btn-success">
+                    <i class="bi bi-pencil-square me-2"></i>Write a Review
+                </a>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-outline-success">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Login to Review
+                </a>
+            {% endif %}
+        </div>
+
+        {% if not user.is_authenticated %}
+            <div class="alert alert-info d-flex align-items-center mb-4">
+                <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                <div>
+                    <strong>Want to share your thoughts?</strong> 
+                    <a href="{% url 'users:login' %}?next={% url 'books:detail' book.slug %}" class="alert-link">Log in</a> or 
+                    <a href="{% url 'users:register' %}?next={% url 'books:detail' book.slug %}" class="alert-link">create an account</a> 
+                    to write a review and add books to your library!
+                </div>
+            </div>
+        {% endif %}
         
-        # Combine and get unique books
-        book_ids = set(list(reviewed_book_ids) + list(added_book_ids))
+        <!-- Reviews List -->
+        {% if book.reviews.all %}
+            {% for review in book.reviews.all %}
+                <div class="card mb-3 {% if user.is_authenticated and review.user == user %}border-success{% endif %}">
+                    <div class="card-body">
+                        
+                        <!-- Review Header: Title and Rating -->
+                        <div class="d-flex justify-content-between">
+                            <h5 class="card-title">{{ review.title }}</h5>
+                            <span class="text-warning">{{ review.get_star_rating }}</span>
+                        </div>
+                        
+                        <!-- Review Meta: Author and Date -->
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            By {{ review.user.username }} on {{ review.created_at|date:"F j, Y" }}
+                            {% if review.updated_at != review.created_at %}
+                                <span class="text-muted">(edited)</span>
+                            {% endif %}
+                        </h6>
+                        
+                        <!-- Review Content -->
+                        <p class="card-text">{{ review.content|safe }}</p>
+                        
+                        <!-- Review Actions (for review author only) -->
+                        {% if user.is_authenticated and review.user == user %}
+                            <div class="mt-2">
+                                <a href="{% url 'reviews:update' review.slug %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil me-2"></i>Edit
+                                </a>
+                                <a href="{% url 'reviews:delete' review.slug %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash me-2"></i>Delete
+                                </a>
+                            </div>
+                        {% endif %}
+                        
+                    </div> <!-- end review card-body -->
+                </div> <!-- end review card -->
+            {% endfor %}
+            
+        {% else %}
+            <!-- Empty State -->
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                No reviews yet. Be the first to review this book!
+            </div>
+        {% endif %}
         
-        return Book.objects.filter(id__in=book_ids).order_by('-created_at')
-
-    def get_context_data(self, **kwargs):
-        """Add context to indicate this is the personal library."""
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = 'My Library'
-        context['is_personal_library'] = True
-        return context
-
-
-# ==============================================================================
-# BOOK DETAIL VIEW
-# ==============================================================================
-
-class BookDetailView(DetailView):
-    """
-    Display detailed information about a single book.
+    </div> <!-- end reviews section -->
     
-    This view is publicly accessible. Handles anonymous users gracefully
-    by safely managing session access and providing appropriate error handling.
-    """
-    model = Book
-    template_name = 'books/book_detail.html'
-    context_object_name = 'book'
-    slug_field = 'slug'
-    slug_url_kwarg = 'slug'
-
-    def get_object(self, queryset=None):
-        """Retrieve the book with error handling."""
-        try:
-            return super().get_object(queryset)
-        except Exception as e:
-            logger.error(f"BookDetailView.get_object error: {e}")
-            messages.error(self.request, "Book not found. It may have been deleted.")
-            return None
-
-    def get(self, request, *args, **kwargs):
-        """Handle GET request with comprehensive error handling."""
-        try:
-            # Log the request details - safely handle anonymous users
-            logger.info("=" * 50)
-            logger.info(f"Book detail view accessed")
-            logger.info(f"URL: {request.path}")
-            logger.info(f"User: {request.user}")
-            logger.info(f"Authenticated: {request.user.is_authenticated}")
-            
-            # Safely get session key - it might be None for anonymous users
-            try:
-                session_key = request.session.session_key
-                logger.info(f"Session key: {session_key}")
-            except Exception as e:
-                logger.info(f"Session not available for anonymous user: {e}")
-            
-            logger.info("=" * 50)
-            
-            # Get the book
-            book = self.get_object()
-            if book is None:
-                return redirect('books:list')
-            
-            # Log book details
-            logger.info(f"Book found: {book.id} - {book.title}")
-            logger.info(f"Review count: {book.review_count()}")
-            
-            # Try to render
-            response = super().get(request, *args, **kwargs)
-            logger.info(f"✅ View rendered successfully")
-            return response
-            
-        except Exception as e:
-            logger.error(f"❌ ERROR in BookDetailView.get: {e}")
-            logger.error(traceback.format_exc())
-            messages.error(request, "An error occurred while loading this book.")
-            return redirect('books:list')
-
-    def get_context_data(self, **kwargs):
-        """Add context with error handling."""
-        try:
-            context = super().get_context_data(**kwargs)
-            logger.info(f"Context data generated successfully")
-            return context
-        except Exception as e:
-            logger.error(f"❌ Error in get_context_data: {e}")
-            logger.error(traceback.format_exc())
-            # Return basic context to prevent 500 error
-            context = super().get_context_data(**kwargs)
-            return context
-
-
-# ==============================================================================
-# SEARCH VIEWS
-# ==============================================================================
-
-class BookSearchView(TemplateView):
-    """
-    Search for books using the Google Books API.
-
-    Features:
-    - Displays search form and results
-    - Checks local database for existing books
-    - Handles API rate limits and errors with exponential backoff retry logic
-    - User-friendly error messages for API issues
-
-    Template: books/book_search.html
-    Context:
-        - 'query': Current search query
-        - 'results': Parsed book data from Google Books API
-    """
-    template_name = 'books/book_search.html'
-
-    def get_context_data(self, **kwargs):
-        """Add search results to context with comprehensive error handling."""
-        context = super().get_context_data(**kwargs)
-        query = self.request.GET.get('q', '').strip()
-
-        if query:
-            logger.info(f"Search initiated for query: {query}")
-            
-            try:
-                api = GoogleBooksAPI()
-                logger.info(f"API Key present: {bool(api.api_key)}")
-                
-                results = api.search_books(query)
-                logger.info(f"Raw results type: {type(results)}")
-                
-                if results is None:
-                    logger.error("API returned None")
-                    messages.warning(
-                        self.request,
-                        'The book search service is temporarily unavailable.'
-                    )
-                    results = []
-                
-                # Parse results and check against local database
-                books_data = []
-                for item in results:
-                    try:
-                        parsed = api.parse_book_data(item)
-                        if parsed['google_books_id']:
-                            existing = Book.objects.filter(
-                                google_books_id=parsed['google_books_id']
-                            ).first()
-                            parsed['in_database'] = existing is not None
-                            parsed['database_id'] = existing.id if existing else None
-                        books_data.append(parsed)
-                    except Exception as e:
-                        logger.error(f"Error parsing book item: {e}")
-                        continue
-                
-                logger.info(f"Successfully parsed {len(books_data)} books")
-                context['results'] = books_data
-
-            except Exception as e:
-                logger.error(f"Search failed with exception: {str(e)}")
-                logger.error(traceback.format_exc())
-                messages.error(
-                    self.request,
-                    'An error occurred while searching. Please try again later.'
-                )
-                context['results'] = []
-
-            context['query'] = query
-
-        return context
-
-
-# ==============================================================================
-# GOOGLE BOOKS API IMPORT VIEWS
-# ==============================================================================
-
-class AddBookFromAPIMixin(CreateView):
-    """
-    Import a book from Google Books API using its Google Books ID.
-    
-    For authenticated users: Adds book and redirects to detail page.
-    For anonymous users: Adds book, stores book info in session,
-    and redirects to login with a next parameter for seamless post-login redirect.
-    
-    URL Pattern: /books/add/<str:google_books_id>/
-    """
-    model = Book
-    fields = '__all__'
-    template_name = 'books/book_add_from_api.html'
-    success_url = reverse_lazy('books:list')
-
-    def get(self, request, *args, **kwargs):
-        """Handle GET request to import a book from Google Books API."""
-        google_books_id = self.kwargs.get('google_books_id')
-
-        # Check if book already exists in database
-        existing = Book.objects.filter(google_books_id=google_books_id).first()
-        if existing:
-            if request.user.is_authenticated:
-                messages.info(
-                    request,
-                    f'📚 "{existing.title}" is already in your library!'
-                )
-                return redirect('books:detail', slug=existing.slug)
-            else:
-                # Store book info in session for redirect after login
-                request.session['pending_book_slug'] = existing.slug
-                request.session['pending_book_title'] = existing.title
-                messages.info(
-                    request,
-                    f'📚 "{existing.title}" is already in our library. '
-                    f'Please log in to view it.'
-                )
-                # Redirect to login with next parameter
-                login_url = reverse('users:login')
-                next_url = reverse('books:detail', args=[existing.slug])
-                return redirect(f"{login_url}?next={next_url}")
-
-        # Fetch book data from API
-        api = GoogleBooksAPI()
-        book_data = api.get_book_by_id(google_books_id)
-
-        if not book_data:
-            messages.error(
-                request,
-                'Could not fetch book data from Google Books. Please try again.'
-            )
-            return redirect('books:search')
-
-        # Parse and create book
-        parsed_data = api.parse_book_data(book_data)
-        book = Book.objects.create(**parsed_data)
-
-        # Custom message based on authentication status
-        if request.user.is_authenticated:
-            messages.success(
-                request,
-                f'✅ Successfully added "{book.title}" to your library!'
-            )
-            return redirect('books:detail', slug=book.slug)
-        else:
-            # Store book info in session for potential redirect after login
-            request.session['pending_book_slug'] = book.slug
-            request.session['pending_book_title'] = book.title
-            messages.info(
-                request,
-                f'✨ "{book.title}" has been added to our library! '
-                f'Please log in or create an account to view it and write reviews.'
-            )
-            # Redirect to login with next parameter
-            login_url = reverse('users:login')
-            next_url = reverse('books:detail', args=[book.slug])
-            return redirect(f"{login_url}?next={next_url}")
-
-
-# ==============================================================================
-# ADMIN BOOK MANAGEMENT VIEWS (Superuser Only)
-# ==============================================================================
-
-class BookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    """
-    Edit book details (superusers only).
-
-    Provides form for editing all book fields.
-    Includes error handling for non-existent books.
-
-    Template: books/book_form.html
-    URL Pattern: /books/<slug:slug>/edit/
-    """
-    model = Book
-    template_name = 'books/book_form.html'
-    fields = [
-        'title', 'subtitle', 'authors', 'publisher', 'published_date',
-        'description', 'page_count', 'categories', 'cover_image_url',
-        'thumbnail_url'
-    ]
-    slug_field = 'slug'
-    slug_url_kwarg = 'slug'
-
-    def test_func(self):
-        """Only allow superusers to edit books."""
-        return self.request.user.is_superuser
-
-    def get_object(self, queryset=None):
-        """Get the book with error handling for non-existent books."""
-        try:
-            return super().get_object(queryset)
-        except Exception:
-            messages.error(
-                self.request,
-                f"Book with slug '{self.kwargs.get('slug')}' not found."
-            )
-            return None
-
-    def get(self, request, *args, **kwargs):
-        """Handle GET with error handling."""
-        book = self.get_object()
-        if book is None:
-            return redirect('books:list')
-        return super().get(request, *args, **kwargs)
-
-    def form_valid(self, form):
-        """Add success message after successful update."""
-        messages.success(
-            self.request,
-            f'<i class="bi bi-check-circle me-2"></i> '
-            f'"{self.object.title}" has been updated successfully!'
-        )
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        """Redirect to book detail page after successful update."""
-        return reverse_lazy('books:detail', kwargs={'slug': self.object.slug})
-
-
-class BookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
-    """
-    Delete a book (superusers only).
-
-    Shows confirmation page before deletion.
-    Includes error handling for non-existent books.
-
-    Template: books/book_confirm_delete.html
-    URL Pattern: /books/<slug:slug>/delete/
-    """
-    model = Book
-    template_name = 'books/book_confirm_delete.html'
-    success_url = reverse_lazy('books:list')
-    slug_field = 'slug'
-    slug_url_kwarg = 'slug'
-
-    def test_func(self):
-        """Only allow superusers to delete books."""
-        return self.request.user.is_superuser
-
-    def get_object(self, queryset=None):
-        """Get the book with error handling."""
-        try:
-            return super().get_object(queryset)
-        except Exception:
-            messages.error(
-                self.request,
-                "Book not found. It may have been already deleted."
-            )
-            return None
-
-    def get(self, request, *args, **kwargs):
-        """Handle GET with error handling."""
-        book = self.get_object()
-        if book is None:
-            return redirect('books:list')
-        return super().get(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        """Handle POST with error handling and success message."""
-        book = self.get_object()
-        if book is None:
-            return redirect('books:list')
-
-        # Store title before deletion for success message
-        book_title = book.title
-        response = super().post(request, *args, **kwargs)
-        messages.success(request, f'"{book_title}" has been permanently deleted.')
-        return response
-
-
-# ==============================================================================
-# INDIE BOOK MANAGEMENT VIEWS (Community Contributions)
-# ==============================================================================
-
-class IndieBookCreateView(LoginRequiredMixin, CreateView):
-    """
-    Allow any logged-in user to add an indie book to the library.
-
-    Sets is_indie flag and tracks which user added the book.
-    Parses comma-separated authors into JSON format.
-
-    Template: books/indie_book_form.html
-    URL Pattern: /books/add/indie/
-    """
-    model = Book
-    form_class = IndieBookForm
-    template_name = 'books/indie_book_form.html'
-
-    def form_valid(self, form):
-        """Set indie book metadata before saving."""
-        # Track who added this book
-        form.instance.added_by = self.request.user
-        form.instance.is_indie = True
-
-        # Parse comma-separated authors into JSON list
-        authors_str = form.cleaned_data.get('authors', '')
-        if authors_str:
-            form.instance.authors = [
-                a.strip() for a in authors_str.split(',') if a.strip()
-            ]
-
-        messages.success(
-            self.request,
-            f'✨ "{form.instance.title}" has been added to the library! '
-            f'Thank you for contributing.'
-        )
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        """Redirect to new book's detail page after creation."""
-        return reverse_lazy('books:detail', kwargs={'slug': self.object.slug})
-
-
-class IndieBookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    """
-    Allow the user who added the book (or superusers) to edit it.
-
-    Only applies to indie books (is_indie=True).
-    Parses comma-separated authors into JSON format.
-
-    Template: books/indie_book_form.html
-    URL Pattern: /books/<slug:slug>/edit/indie/
-    """
-    model = Book
-    form_class = IndieBookForm
-    template_name = 'books/indie_book_form.html'
-    slug_field = 'slug'
-    slug_url_kwarg = 'slug'
-
-    def test_func(self):
-        """Allow editing if user is superuser OR added the book."""
-        book = self.get_object()
-        return self.request.user.is_superuser or book.added_by == self.request.user
-
-    def get_queryset(self):
-        """Restrict to indie books only."""
-        return Book.objects.filter(is_indie=True)
-
-    def form_valid(self, form):
-        """Parse authors and add success message."""
-        # Parse comma-separated authors into JSON list
-        authors_str = form.cleaned_data.get('authors', '')
-        if authors_str:
-            form.instance.authors = [
-                a.strip() for a in authors_str.split(',') if a.strip()
-            ]
-
-        messages.success(self.request, 'Book updated successfully!')
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        """Redirect to book detail page after successful update."""
-        return reverse_lazy('books:detail', kwargs={'slug': self.object.slug})
-
-
-class IndieBookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
-    """
-    Allow the user who added the book (or superusers) to delete it.
-
-    Only applies to indie books (is_indie=True).
-    Shows confirmation page before deletion.
-
-    Template: books/indie_book_confirm_delete.html
-    URL Pattern: /books/<slug:slug>/delete/indie/
-    """
-    model = Book
-    template_name = 'books/indie_book_confirm_delete.html'
-    slug_field = 'slug'
-    slug_url_kwarg = 'slug'
-
-    def test_func(self):
-        """Allow deletion if user is superuser OR added the book."""
-        book = self.get_object()
-        return self.request.user.is_superuser or book.added_by == self.request.user
-
-    def get_queryset(self):
-        """Restrict to indie books only."""
-        return Book.objects.filter(is_indie=True)
-
-    def delete(self, request, *args, **kwargs):
-        """Add success message before deletion."""
-        book = self.get_object()
-        messages.success(
-            request,
-            f'"{book.title}" has been removed from the library.'
-        )
-        return super().delete(request, *args, **kwargs)
-
-    def get_success_url(self):
-        """Redirect to search page after deletion."""
-        return reverse_lazy('books:search')
+</div> <!-- end container -->
+{% endblock %}
