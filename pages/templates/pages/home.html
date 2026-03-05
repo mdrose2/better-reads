@@ -17,9 +17,11 @@
                     <a href="{% url 'books:search' %}" class="btn btn-success btn-lg">
                         <i class="bi bi-search me-2"></i>Find Books
                     </a>
-                    <a href="{% url 'users:register' %}" class="btn btn-outline-light btn-lg">
-                        <i class="bi bi-person-plus me-2"></i>Join Now
-                    </a>
+                    {% if not user.is_authenticated %}
+                        <a href="{% url 'users:register' %}" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-person-plus me-2"></i>Join Now
+                        </a>
+                    {% endif %}
                 </div>
             </div>
             <div class="col-lg-6">
@@ -233,9 +235,15 @@
     <div class="container text-center">
         <h2 class="mb-4">Ready to start your reading journey?</h2>
         <p class="lead mb-4">Join Better Reads today and connect with fellow book lovers.</p>
-        <a href="{% url 'users:register' %}" class="btn btn-light btn-lg">
-            <i class="bi bi-person-plus me-2"></i>Sign Up Now
-        </a>
+        {% if not user.is_authenticated %}
+            <a href="{% url 'users:register' %}" class="btn btn-light btn-lg">
+                <i class="bi bi-person-plus me-2"></i>Sign Up Now
+            </a>
+        {% else %}
+            <a href="{% url 'books:search' %}" class="btn btn-light btn-lg">
+                <i class="bi bi-search me-2"></i>Find Books
+            </a>
+        {% endif %}
     </div>
 </div>
 
