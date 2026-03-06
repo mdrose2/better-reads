@@ -176,7 +176,10 @@
                     <h6>Quick Links</h6>
                     <ul class="list-unstyled">
                         <li><a href="/" class="text-decoration-none text-muted">Home</a></li>
-                        <li><a href="{% url 'books:list' %}" class="text-decoration-none text-muted">My Library</a></li>
+                        {% if user.is_authenticated %}
+                            <li><a href="{% url 'books:my-library' %}" class="text-decoration-none text-muted">My Library</a></li>
+                        {% endif %}
+                        <li><a href="{% url 'books:list' %}" class="text-decoration-none text-muted">Community Library</a></li>
                         <li><a href="{% url 'books:search' %}" class="text-decoration-none text-muted">Search Books</a></li>
                     </ul>
                 </div>
