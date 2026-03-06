@@ -6,11 +6,11 @@ This module contains all view logic for review-related functionality including:
 - Viewing individual reviews
 - Creating, updating, and deleting reviews
 - Permission handling for review authors
+- Comprehensive error handling and logging
 """
 
+import logging
 import traceback
-from venv import logger
-
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
@@ -19,6 +19,8 @@ from django.contrib import messages
 from .models import Review
 from books.models import Book
 from .forms import ReviewForm
+
+logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
@@ -82,6 +84,7 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
     
     Requires user to be logged in.
     Prevents duplicate reviews (one per user per book).
+    Includes comprehensive error handling and logging.
     
     Template: reviews/review_form.html
     URL Pattern: /reviews/create/<int:book_id>/
@@ -89,30 +92,48 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
     model = Review
     form_class = ReviewForm
     template_name = 'reviews/review_form.html'
-    
-    # books/views.py - Update the get_context_data method in BookDetailView
 
     def get_context_data(self, **kwargs):
         """
-        Add context with comprehensive error handling.
-        Filters reviews to ensure proper display.
+        Add the book being reviewed to template context.
+        
+        IMPORTANT: Do NOT access self.object here - it doesn't exist yet!
+        This method only runs before the form is submitted.
+        
+        Returns:
+            dict: Context with book object
+        """
+        context = super().get_context_data(**kwargs)
+        book_id = self.kwargs.get('book_id')
+        
+        try:
+            # Safely get the book being reviewed
+            book = get_object_or_404(Book, id=book_id)
+            context['book'] = book
+            logger.info(f"ReviewCreateView: Loaded book '{book.title}' (ID: {book_id})")
+        except Exception as e:
+            logger.error(f"ReviewCreateView: Error loading book {book_id}: {e}")
+            logger.error(traceback.format_exc())
+            messages.error(self.request, "The book you're trying to review doesn't exist.")
+            # We'll handle the redirect in the get() method
+        
+        return context
+
+    def get(self, request, *args, **kwargs):
+        """
+        Handle GET request with proper error handling.
         """
         try:
-            context = super().get_context_data(**kwargs)
-            
-            # Add visible reviews (all reviews are visible, but we ensure they have proper display)
-            context['visible_reviews'] = self.object.reviews.all()
-            
-            logger.info(f"Context data generated successfully for book: {self.object.id}")
-            return context
+            # Verify the book exists before showing the form
+            book_id = self.kwargs.get('book_id')
+            book = get_object_or_404(Book, id=book_id)
+            logger.info(f"ReviewCreateView: GET request for book '{book.title}'")
+            return super().get(request, *args, **kwargs)
         except Exception as e:
-            logger.error(f"❌ Error in get_context_data: {e}")
+            logger.error(f"ReviewCreateView: Error in GET: {e}")
             logger.error(traceback.format_exc())
-            # Return basic context to prevent 500 error
-            try:
-                return super().get_context_data(**kwargs)
-            except:
-                return {}
+            messages.error(request, "The book you're trying to review doesn't exist.")
+            return redirect('books:list')
 
     def form_valid(self, form):
         """
@@ -121,28 +142,49 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
         Returns:
             HttpResponse: Redirect to book detail on success
         """
-        # Assign user and book
-        form.instance.user = self.request.user
-        form.instance.book_id = self.kwargs.get('book_id')
+        # Get the book from the URL
+        book_id = self.kwargs.get('book_id')
         
-        # Check for existing review
+        try:
+            book = Book.objects.get(id=book_id)
+        except Book.DoesNotExist:
+            logger.error(f"ReviewCreateView: Book {book_id} not found during form_valid")
+            messages.error(self.request, "The book you're trying to review doesn't exist.")
+            return redirect('books:list')
+        
+        # Assign user and book to the review
+        form.instance.user = self.request.user
+        form.instance.book = book
+        
+        logger.info(f"ReviewCreateView: Creating review for book '{book.title}' by user {self.request.user}")
+        
+        # Check if user already reviewed this book
         existing_review = Review.objects.filter(
             user=self.request.user,
-            book_id=form.instance.book_id
+            book=book
         ).first()
         
         if existing_review:
+            logger.warning(f"ReviewCreateView: User {self.request.user} already reviewed book {book_id}")
             messages.error(
                 self.request,
                 'You have already reviewed this book!'
             )
-            return redirect('books:detail', slug=existing_review.book.slug)
+            return redirect('books:detail', slug=book.slug)
         
-        messages.success(
-            self.request,
-            'Your review has been posted!'
-        )
-        return super().form_valid(form)
+        try:
+            response = super().form_valid(form)
+            logger.info(f"ReviewCreateView: Review created successfully with ID: {self.object.id}")
+            messages.success(
+                self.request,
+                'Your review has been posted!'
+            )
+            return response
+        except Exception as e:
+            logger.error(f"ReviewCreateView: Error saving review: {e}")
+            logger.error(traceback.format_exc())
+            messages.error(self.request, 'An error occurred while creating your review.')
+            return redirect('books:detail', slug=book.slug)
     
     def get_success_url(self):
         """
@@ -187,7 +229,8 @@ class ReviewUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             dict: Context with book object
         """
         context = super().get_context_data(**kwargs)
-        context['book'] = self.object.book
+        if self.object:
+            context['book'] = self.object.book
         return context
     
     def get_object(self, queryset=None):
@@ -199,7 +242,9 @@ class ReviewUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         """
         try:
             return super().get_object(queryset)
-        except Exception:
+        except Exception as e:
+            logger.error(f"ReviewUpdateView.get_object error: {e}")
+            logger.error(traceback.format_exc())
             messages.error(
                 self.request,
                 "Review not found. It may have been deleted."
@@ -265,7 +310,9 @@ class ReviewDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         """
         try:
             return super().get_object(queryset)
-        except Exception:
+        except Exception as e:
+            logger.error(f"ReviewDeleteView.get_object error: {e}")
+            logger.error(traceback.format_exc())
             messages.error(
                 self.request,
                 "Review not found. It may have been deleted."
@@ -287,6 +334,9 @@ class ReviewDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         
         # Store book slug for redirect
         book_slug = review.book.slug
+        book_title = review.book.title
+        
+        logger.info(f"ReviewDeleteView: Deleting review {review.id} for book '{book_title}'")
         
         # Perform deletion
         response = super().post(request, *args, **kwargs)
