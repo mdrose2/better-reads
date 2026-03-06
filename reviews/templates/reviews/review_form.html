@@ -155,28 +155,4 @@
 {% block extra_js %}
     <!-- Form validation for reviews -->
     <script src="{% static 'js/validation.js' %}"></script>
-    
-    <!-- Character counter for review content -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const contentField = document.getElementById('{{ form.content.id_for_label }}');
-            const counterElement = document.getElementById('char-counter');
-            
-            if (contentField && counterElement) {
-                const updateCounter = function() {
-                    const remaining = 5000 - contentField.value.length;
-                    counterElement.textContent = `${remaining} characters remaining`;
-                    
-                    if (remaining < 0) {
-                        counterElement.classList.add('text-danger');
-                    } else {
-                        counterElement.classList.remove('text-danger');
-                    }
-                };
-                
-                contentField.addEventListener('input', updateCounter);
-                updateCounter(); // Initial update
-            }
-        });
-    </script>
 {% endblock %}
