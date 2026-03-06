@@ -55,15 +55,26 @@ INSTALLED_APPS = [
     'health.apps.HealthConfig',
 ]
 
+# ==============================================================================
+# MIDDLEWARE CONFIGURATION
+# ==============================================================================
+# Middleware runs in this order for every request/response cycle.
+
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Security & Performance
+    'django.middleware.security.SecurityMiddleware',      # Security headers
+    'whitenoise.middleware.WhiteNoiseMiddleware',         # Static files serving
+    
+    # Core Django Functionality
+    'django.contrib.sessions.middleware.SessionMiddleware',      # User sessions
+    'django.middleware.common.CommonMiddleware',                 # URL handling
+    'django.middleware.csrf.CsrfViewMiddleware',                 # CSRF protection
+    'django.contrib.auth.middleware.AuthenticationMiddleware',   # User authentication
+    'django.contrib.messages.middleware.MessageMiddleware',      # Flash messages
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',    # Clickjacking protection
+    
+    # Custom Middleware
+    'books.middleware.AnonymousBookRedirectMiddleware',  # Redirects anonymous users from 500s to login
 ]
 
 ROOT_URLCONF = 'book_review_site.urls'
