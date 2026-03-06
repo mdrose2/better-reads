@@ -32,11 +32,6 @@ class AnonymousBookRedirectMiddleware:
             
             # Log the redirect for debugging
             logger.warning(f"Redirecting anonymous user from 500 error at {request.path} to login")
-
-            # Add a message to inform the user why they are being redirected
-            messages.info(
-                request,
-                'Please log in to view this book.')
             
             # Redirect to login with next parameter to return after login
             login_url = reverse('users:login')

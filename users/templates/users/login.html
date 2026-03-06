@@ -33,6 +33,14 @@
                         {% endfor %}
                     {% endif %}
                     
+                    <!-- Next parameter message - THIS IS THE KEY PART -->
+                    {% if request.GET.next %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Please log in to continue to the page you requested.
+                        </div>
+                    {% endif %}
+                    
                     <!-- Login Form -->
                     <form method="post" novalidate>
                         {% csrf_token %}
@@ -49,26 +57,26 @@
                             <input type="text" 
                                    name="username" 
                                    class="form-control" 
+                                   id="id_username"
                                    required
                                    autofocus>
                         </div>
                         
-                        <!-- Password Field -->
+                        <!-- Password Field with Toggle -->
                         <div class="mb-3">
                             <label for="id_password" class="form-label fw-semibold">
                                 <i class="bi bi-lock me-1"></i>Password
                             </label>
                             <div class="input-group">
                                 <input type="password" 
-                                    name="password" 
-                                    class="form-control" 
-                                    id="id_password"
-                                    required>
+                                       name="password" 
+                                       class="form-control" 
+                                       id="id_password"
+                                       required>
                                 <button class="btn btn-outline-secondary" type="button" 
                                         data-password-toggle="id_password">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                         
