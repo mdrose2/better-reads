@@ -83,8 +83,7 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
     Create a new review for a specific book.
     
     Requires user to be logged in.
-    Prevents duplicate reviews (one per user per book).
-    Includes comprehensive error handling and logging.
+    If user already reviewed this book, redirects to edit page.
     
     Template: reviews/review_form.html
     URL Pattern: /reviews/create/<int:book_id>/
@@ -93,56 +92,61 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
     form_class = ReviewForm
     template_name = 'reviews/review_form.html'
 
-    def get_context_data(self, **kwargs):
+    def get(self, request, *args, **kwargs):
         """
-        Add the book being reviewed to template context.
-        
-        IMPORTANT: Do NOT access self.object here - it doesn't exist yet!
-        This method only runs before the form is submitted.
-        
-        Returns:
-            dict: Context with book object
+        Handle GET request - check for existing review first.
         """
-        context = super().get_context_data(**kwargs)
         book_id = self.kwargs.get('book_id')
         
         try:
-            # Safely get the book being reviewed
             book = get_object_or_404(Book, id=book_id)
-            context['book'] = book
-            logger.info(f"ReviewCreateView: Loaded book '{book.title}' (ID: {book_id})")
-        except Exception as e:
-            logger.error(f"ReviewCreateView: Error loading book {book_id}: {e}")
-            logger.error(traceback.format_exc())
-            messages.error(self.request, "The book you're trying to review doesn't exist.")
-            # We'll handle the redirect in the get() method
-        
-        return context
-
-    def get(self, request, *args, **kwargs):
-        """
-        Handle GET request with proper error handling.
-        """
-        try:
-            # Verify the book exists before showing the form
-            book_id = self.kwargs.get('book_id')
-            book = get_object_or_404(Book, id=book_id)
+            
+            # Check if user already reviewed this book
+            existing_review = Review.objects.filter(
+                user=request.user,
+                book=book
+            ).first()
+            
+            if existing_review:
+                # Redirect to edit page with a helpful message
+                messages.info(
+                    request,
+                    f'You already reviewed "{book.title}". You can edit your review below.'
+                )
+                return redirect('reviews:update', slug=existing_review.slug)
+            
+            # No existing review, proceed normally
             logger.info(f"ReviewCreateView: GET request for book '{book.title}'")
             return super().get(request, *args, **kwargs)
+            
         except Exception as e:
             logger.error(f"ReviewCreateView: Error in GET: {e}")
             logger.error(traceback.format_exc())
             messages.error(request, "The book you're trying to review doesn't exist.")
             return redirect('books:list')
 
+    def get_context_data(self, **kwargs):
+        """
+        Add the book being reviewed to template context.
+        """
+        context = super().get_context_data(**kwargs)
+        book_id = self.kwargs.get('book_id')
+        
+        try:
+            book = get_object_or_404(Book, id=book_id)
+            context['book'] = book
+        except Exception as e:
+            logger.error(f"ReviewCreateView: Error loading book {book_id}: {e}")
+            messages.error(self.request, "Book not found.")
+            raise
+        
+        return context
+
     def form_valid(self, form):
         """
-        Assign user and book to review, check for duplicates.
-        
-        Returns:
-            HttpResponse: Redirect to book detail on success
+        Assign user and book to review.
+        (The duplicate check is now in get() so we shouldn't get here for duplicates)
         """
-        # Get the book from the URL
         book_id = self.kwargs.get('book_id')
         
         try:
@@ -152,25 +156,25 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
             messages.error(self.request, "The book you're trying to review doesn't exist.")
             return redirect('books:list')
         
-        # Assign user and book to the review
-        form.instance.user = self.request.user
-        form.instance.book = book
-        
-        logger.info(f"ReviewCreateView: Creating review for book '{book.title}' by user {self.request.user}")
-        
-        # Check if user already reviewed this book
+        # Double-check for existing review (race condition protection)
         existing_review = Review.objects.filter(
             user=self.request.user,
             book=book
         ).first()
         
         if existing_review:
-            logger.warning(f"ReviewCreateView: User {self.request.user} already reviewed book {book_id}")
-            messages.error(
+            logger.warning(f"ReviewCreateView: User {self.request.user} tried to create duplicate review")
+            messages.info(
                 self.request,
-                'You have already reviewed this book!'
+                f'You already reviewed this book. Redirecting to edit page.'
             )
-            return redirect('books:detail', slug=book.slug)
+            return redirect('reviews:update', slug=existing_review.slug)
+        
+        # Assign user and book
+        form.instance.user = self.request.user
+        form.instance.book = book
+        
+        logger.info(f"ReviewCreateView: Creating review for book '{book.title}' by user {self.request.user}")
         
         try:
             response = super().form_valid(form)
@@ -187,14 +191,8 @@ class ReviewCreateView(LoginRequiredMixin, CreateView):
             return redirect('books:detail', slug=book.slug)
     
     def get_success_url(self):
-        """
-        Redirect to book detail page after successful creation.
-        
-        Returns:
-            str: URL of the reviewed book's detail page
-        """
+        """Redirect to book detail page after successful creation."""
         return reverse_lazy('books:detail', kwargs={'slug': self.object.book.slug})
-
 
 # ==============================================================================
 # REVIEW UPDATE VIEW
