@@ -166,8 +166,8 @@ class BookEditForm(forms.ModelForm):
     """
     Form for editing books (both admin and indie creators).
     
-    This form handles the authors field as plain text, converting
-    between string and JSON format automatically.
+    This form handles both authors and categories as plain text,
+    converting between string and JSON format automatically.
     """
     
     # Override authors field to accept plain text
@@ -178,6 +178,17 @@ class BookEditForm(forms.ModelForm):
             'required': True,
         }),
         help_text="For multiple authors, separate names with commas"
+    )
+    
+    # Override categories field to accept plain text
+    categories = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Fiction, Fantasy, Mystery',
+            'required': False,
+        }),
+        help_text="Separate multiple categories with commas",
+        required=False
     )
     
     class Meta:
@@ -215,10 +226,7 @@ class BookEditForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Number of pages'
             }),
-            'categories': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'e.g., Fiction, Fantasy, Mystery (comma separated)'
-            }),
+            # Note: categories is handled by the overridden field above
             'cover_image_url': forms.URLInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'URL to cover image'
@@ -254,10 +262,22 @@ class BookEditForm(forms.ModelForm):
         
         help_texts = {
             'published_date': 'Format: YYYY-MM-DD',
-            'categories': 'Separate multiple categories with commas',
             'isbn_13': '13-digit ISBN (optional)',
             'isbn_10': '10-digit ISBN (optional)',
         }
+    
+    def __init__(self, *args, **kwargs):
+        """Initialize form and convert stored JSON lists to strings for display."""
+        super().__init__(*args, **kwargs)
+        
+        # If we're editing an existing book, convert authors list to string
+        if self.instance and self.instance.pk:
+            if self.instance.authors and isinstance(self.instance.authors, list):
+                self.initial['authors'] = ', '.join(self.instance.authors)
+            
+            # Convert categories list to string
+            if self.instance.categories and isinstance(self.instance.categories, list):
+                self.initial['categories'] = ', '.join(self.instance.categories)
     
     def clean_authors(self):
         """
@@ -281,11 +301,13 @@ class BookEditForm(forms.ModelForm):
         Convert comma-separated categories string to JSON-compatible list.
         """
         categories_str = self.cleaned_data.get('categories', '')
-        if not categories_str:
-            return []
+        
+        if not categories_str or not categories_str.strip():
+            return []  # Return empty list for optional field
         
         # Split by commas and clean each category
         category_list = [c.strip() for c in categories_str.split(',') if c.strip()]
+        
         return category_list
     
     def clean_isbn_13(self):
@@ -308,10 +330,11 @@ class BookEditForm(forms.ModelForm):
             return isbn
         
         clean_isbn = isbn.replace('-', '').replace(' ', '')
-        if not clean_isbn.isdigit() and not clean_isbn[-1].upper() == 'X':
-            # ISBN-10 can end with 'X'
-            if not clean_isbn[:-1].isdigit():
-                raise forms.ValidationError("ISBN-10 must contain only numbers and hyphens, may end with X.")
         if len(clean_isbn) != 10:
             raise forms.ValidationError("ISBN-10 must be exactly 10 characters.")
-        return clean_isbn
+        
+        # ISBN-10 can end with X
+        if not (clean_isbn[:-1].isdigit() and (clean_isbn[-1].isdigit() or clean_isbn[-1].upper() == 'X')):
+            raise forms.ValidationError("ISBN-10 must contain only numbers, may end with X.")
+        
+        return clean_isbn    
