@@ -21,7 +21,7 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .models import Book
 from .utils import GoogleBooksAPI
-from .forms import IndieBookForm
+from .forms import IndieBookForm, BookEditForm
 from reviews.models import Review
 
 logger = logging.getLogger(__name__)
@@ -391,29 +391,48 @@ class AddBookFromAPIMixin(CreateView):
 # ADMIN BOOK MANAGEMENT VIEWS (Superuser Only)
 # ==============================================================================
 
+# books/views.py - Update BookUpdateView
+
 class BookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     """
-    Edit book details (superusers only).
-
-    Provides form for editing all book fields.
-    Includes error handling for non-existent books.
-
-    Template: books/book_form.html
-    URL Pattern: /books/<slug:slug>/edit/
+    Edit book details (accessible to superusers AND indie book creators).
+    
+    Uses the user-friendly BookEditForm that handles authors as plain text.
     """
     model = Book
+    form_class = BookEditForm  # Changed from fields list to form class
     template_name = 'books/book_form.html'
-    fields = [
-        'title', 'subtitle', 'authors', 'publisher', 'published_date',
-        'description', 'page_count', 'categories', 'cover_image_url',
-        'thumbnail_url'
-    ]
     slug_field = 'slug'
     slug_url_kwarg = 'slug'
 
     def test_func(self):
-        """Only allow superusers to edit books."""
-        return self.request.user.is_superuser
+        """Allow editing if user is superuser OR added the book."""
+        book = self.get_object()
+        # Superusers can edit anything
+        if self.request.user.is_superuser:
+            return True
+        # Indie book creators can edit their own books
+        if book.is_indie and book.added_by == self.request.user:
+            return True
+        return False
+
+    def get_initial(self):
+        """
+        Convert stored JSON lists back to comma-separated strings for display.
+        """
+        initial = super().get_initial()
+        if self.object:
+            # Convert authors list to string
+            if self.object.authors:
+                if isinstance(self.object.authors, list):
+                    initial['authors'] = ', '.join(self.object.authors)
+            
+            # Convert categories list to string
+            if self.object.categories:
+                if isinstance(self.object.categories, list):
+                    initial['categories'] = ', '.join(self.object.categories)
+        
+        return initial
 
     def get_object(self, queryset=None):
         """Get the book with error handling for non-existent books."""
@@ -435,6 +454,7 @@ class BookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def form_valid(self, form):
         """Add success message after successful update."""
+        # The form already handles conversion of authors/categories to lists
         messages.success(
             self.request,
             f'<i class="bi bi-check-circle me-2"></i> '
@@ -445,7 +465,6 @@ class BookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def get_success_url(self):
         """Redirect to book detail page after successful update."""
         return reverse_lazy('books:detail', kwargs={'slug': self.object.slug})
-
 
 class BookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     """
@@ -572,12 +591,6 @@ class IndieBookUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 class IndieBookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     """
     Allow the user who added the book (or superusers) to delete it.
-
-    Only applies to indie books (is_indie=True).
-    Shows confirmation page before deletion.
-
-    Template: books/indie_book_confirm_delete.html
-    URL Pattern: /books/<slug:slug>/delete/indie/
     """
     model = Book
     template_name = 'books/indie_book_confirm_delete.html'
@@ -590,7 +603,7 @@ class IndieBookDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return self.request.user.is_superuser or book.added_by == self.request.user
 
     def get_queryset(self):
-        """Restrict to indie books only."""
+        """Only indie books can be deleted through this view."""
         return Book.objects.filter(is_indie=True)
 
     def delete(self, request, *args, **kwargs):
