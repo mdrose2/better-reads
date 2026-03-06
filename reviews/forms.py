@@ -80,8 +80,8 @@ class ReviewForm(forms.ModelForm):
         # HELP TEXT
         # =====================================================================
         help_texts = {
-            'title': 'Choose a title that captures the essence of your review',
-            'content': 'Be specific and helpful to other readers',
+            'title': 'Choose a title. Witty, funny, helpful, anything! Max length: 200 characters.',
+            'content': 'Be specific and helpful to other readers. Max length: 5000 characters.',
         }
     
     # =========================================================================
