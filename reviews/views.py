@@ -355,3 +355,49 @@ class ReviewDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
             str: URL of the book's detail page
         """
         return reverse_lazy('books:detail', kwargs={'slug': self.object.book.slug})
+
+class CommunityReviewsView(ListView):
+    """
+    Display all reviews from the community, most recent first.
+    
+    Features:
+    - Paginated list of all reviews
+    - Search/filter by book title or username
+    - Visible to all users (no login required)
+    
+    Template: reviews/community_reviews.html
+    Context: 
+        - 'reviews': Paginated list of Review objects
+        - 'search_query': Current search term (if any)
+    Pagination: 20 reviews per page
+    """
+    model = Review
+    template_name = 'reviews/community_reviews.html'
+    context_object_name = 'reviews'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        """
+        Return reviews ordered by most recent, with optional search filter.
+        """
+        queryset = Review.objects.select_related(
+            'user', 'book'
+        ).order_by('-created_at')
+        
+        # Handle search
+        search_query = self.request.GET.get('q', '').strip()
+        if search_query:
+            # Search by book title OR username
+            queryset = queryset.filter(
+                models.Q(book__title__icontains=search_query) |
+                models.Q(user__username__icontains=search_query)
+            ).distinct()
+            logger.info(f"CommunityReviewsView: Search for '{search_query}' returned {queryset.count()} results")
+        
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        """Add search query to context for template."""
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('q', '')
+        return context

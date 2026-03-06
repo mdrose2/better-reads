@@ -49,7 +49,15 @@
                         </a>
                     </li>
                     
-                    <!-- My Library (Personal) - only visible to logged-in users -->
+                    <!-- Community Reviews -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'community' %}active{% endif %}" 
+                        href="{% url 'reviews:community' %}">
+                            <i class="bi bi-people me-1"></i>Community Reviews
+                        </a>
+                    </li>
+                    
+                    <!-- My Library - only visible to logged-in users -->
                     {% if user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'my-library' %}active{% endif %}" 
@@ -58,9 +66,11 @@
                             </a>
                         </li>
                     {% endif %}
+                    
+                    <!-- Search - visible to everyone -->
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'search' %}active{% endif %}" 
-                           href="{% url 'books:search' %}">
+                        href="{% url 'books:search' %}">
                             <i class="bi bi-search me-1"></i>Search Books
                         </a>
                     </li>

@@ -20,11 +20,14 @@ app_name = 'reviews'
 urlpatterns = [
     
     # ==========================================================================
-    # REVIEW LISTING
+    # REVIEW LISTINGS
     # ==========================================================================
     path('', 
          views.ReviewListView.as_view(), 
          name='list'),
+    path('community/', 
+         views.CommunityReviewsView.as_view(), 
+         name='community'),
     
     # ==========================================================================
     # REVIEW CREATION (uses book_id, not slug)
