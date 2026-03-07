@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ==============================================================================
 
 SECRET_KEY = 'django-insecure-ay*%6nuktf1gpt#6%q7n1)nc(s9s$7a7!m1r+%z7avb(%z$b$1'
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = [
     'better-reads-zlcy.onrender.com', 
     '127.0.0.1', 
@@ -168,7 +168,9 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # ==============================================================================
 # MEDIA FILES (User Uploads)

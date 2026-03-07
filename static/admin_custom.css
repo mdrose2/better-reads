@@ -1,0 +1,140 @@
+/* ============================================================================
+   Better Reads Admin – Practical Layout Improvements Only
+   ============================================================================ */
+
+/* ----- Left Sidebar (content-related) – Keep subtle styling ----- */
+#content-related {
+    background: var(--body-bg) !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-color) !important;
+    margin-top: 20px !important;
+}
+
+#content-related .module {
+    background: var(--body-bg) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    margin-bottom: 20px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
+#content-related .module h2 {
+    padding: 10px 15px !important;
+    margin: 0 !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+}
+
+#content-related .module ul {
+    padding: 10px 15px !important;
+}
+
+#content-related .module li {
+    list-style: none !important;
+    padding: 5px 0 !important;
+}
+
+/* ----- Main Content Modules (e.g., on index page) ----- */
+.module {
+    border: 1px solid var(--border-color) !important;
+    border-radius: 10px !important;
+    margin-bottom: 20px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
+.module h2, .module caption {
+    padding: 12px 15px !important;
+    margin: 0 !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+
+.module .form-row {
+    padding: 15px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.module .form-row:last-child {
+    border-bottom: none !important;
+}
+
+/* ----- Form Fields – Keep consistent spacing ----- */
+.aligned label {
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    margin-bottom: 5px !important;
+    display: block !important;
+}
+
+input[type=text], input[type=password], input[type=email], input[type=url],
+input[type=number], textarea, select {
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    padding: 8px 12px !important;
+    width: 100% !important;
+    max-width: 700px !important;
+    font-size: 14px !important;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* ----- Help Text & Errors – Keep readable spacing ----- */
+.help {
+    color: var(--body-quiet-color) !important;
+    font-size: 0.85rem !important;
+    margin-top: 5px !important;
+    font-style: italic !important;
+}
+
+.errorlist {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 5px 0 !important;
+    font-size: 0.9rem !important;
+    min-height: 1.5rem !important;
+}
+
+.errorlist li {
+    background: #f8d7da !important;
+    border: 1px solid #f5c6cb !important;
+    border-radius: 4px !important;
+    padding: 8px 12px !important;
+    margin-bottom: 5px !important;
+    color: #721c24 !important;
+}
+
+/* ----- Pagination – Keep consistent spacing ----- */
+.paginator {
+    background: var(--body-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    padding: 10px !important;
+    text-align: right !important;
+}
+
+.paginator a {
+    padding: 5px 10px !important;
+    text-decoration: none !important;
+}
+
+.paginator a:hover {
+    background: var(--darkened-bg) !important;
+    border-radius: 4px !important;
+}
+
+/* ----- Responsive Tweaks – Keep practical layout fixes ----- */
+@media (max-width: 768px) {
+    .form-row.field-title,
+    .form-row.field-subtitle {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    /* Ensure tables don't break on mobile */
+    #result_list {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}

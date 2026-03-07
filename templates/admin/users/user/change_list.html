@@ -1,0 +1,321 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+<!-- =============================================================================
+     ADMIN STYLES
+     Ensures all parent CSS is loaded to maintain Django admin functionality
+============================================================================= -->
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/changelists.css' %}">
+{% endblock %}
+
+<!-- =============================================================================
+     SEARCH BAR OVERRIDE
+     Original search bar removed; custom implementation added below
+============================================================================= -->
+{% block search %}
+    <!-- Intentionally empty -->
+{% endblock %}
+
+<!-- =============================================================================
+     OBJECT TOOLS OVERRIDE
+     Default add button removed; custom implementation added below
+============================================================================= -->
+{% block object-tools %}
+    <!-- Intentionally empty -->
+{% endblock %}
+
+<!-- =============================================================================
+     MAIN CONTENT
+     Custom layout with repositioned search bar and collapsible filter sidebar
+============================================================================= -->
+{% block content %}
+    <div id="content-main" style="display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 0; padding: 0;">
+        <!-- =========================================================================
+             SEARCH BAR
+        ========================================================================= -->
+        <div style="margin-bottom: 20px; padding: 15px; background: var(--body-bg); border: 1px solid var(--border-color); border-radius: 4px; width: 100%; box-sizing: border-box;">
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                    <span>🔍</span> Search Users
+                </h3>
+                <div style="flex: 1; min-width: 300px;">
+                    <form id="changelist-search-custom" method="get" style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <input type="text" size="40" name="q" value="{{ cl.query }}" id="searchbar" 
+                                   placeholder="Search by username, email, or name..."
+                                   style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <button type="submit" class="button" style="padding: 8px 15px;">Search</button>
+                        {% if cl.query %}
+                            <a href="?" class="button" style="padding: 8px 15px; text-decoration: none;">Clear</a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================================
+             CHANGELIST FORM
+             Wraps actions and result table for proper form submission
+        ========================================================================= -->
+        <form id="changelist-form" method="post"{% if cl.formset and cl.formset.is_multipart %} enctype="multipart/form-data"{% endif %} novalidate style="width: 100%;">
+            {% csrf_token %}
+            
+            <!-- Action bar with dropdown and filter toggle -->
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    {% block actions %}
+                        <div class="actions">
+                            {% for field in action_form %}{% if field.label %}<label>{{ field.label }} {% endif %}{{ field }}{% if field.label %}</label>{% endif %}{% endfor %}
+                            <button type="submit" class="button" title="Run the selected action" name="index" value="{{ action_index|default:0 }}">Go</button>
+                            {% if actions_selection_counter %}
+                                <span class="action-counter" data-actions-icnt="{{ cl.result_list|length }}">{{ selection_note }}</span>
+                            {% endif %}
+                        </div>
+                    {% endblock %}
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="toggle-filters" type="button" class="button" style="background: #6c757d;" onclick="toggleFilters()">
+                        <span>🔽</span> Show Filters
+                    </button>
+                    <a href="{% url 'admin:users_user_add' %}" class="addlink" style="background: #28a745; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
+                        <span>➕</span> Add User
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main content area with table and filter sidebar -->
+            <div style="display: flex; gap: 20px; width: 100%;">
+                <!-- Table container -->
+                <div id="main-table" style="flex: 1; min-width: 0; width: 100%;">
+                    {% block date_hierarchy %}
+                        {% if cl.date_hierarchy %}{% date_hierarchy cl %}{% endif %}
+                    {% endblock %}
+
+                    <div style="margin: 15px 0; display: flex; justify-content: flex-end; width: 100%;">
+                        {% pagination cl %}
+                    </div>
+
+                    <!-- Result table with fixed column widths -->
+                    <div style="background: white; border: 1px solid var(--border-color); border-radius: 4px; overflow-x: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.05); width: 100%; margin: 0; padding: 0;">
+                        <style>
+                            #result_list {
+                                width: 100% !important;
+                                table-layout: fixed !important;
+                                border-collapse: collapse !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                            }
+                            
+                            #result_list thead th {
+                                padding: 12px 8px !important;
+                                text-align: left;
+                                border-bottom: 2px solid var(--border-color);
+                                background: var(--darkened-bg);
+                                font-weight: 600;
+                                white-space: nowrap;
+                            }
+                            
+                            #result_list tbody td {
+                                padding: 12px 8px !important;
+                                border-bottom: 1px solid var(--border-color);
+                                vertical-align: middle;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                            
+                            /* Hide the reviews column (10th column) */
+                            #result_list th:nth-child(10),
+                            #result_list td:nth-child(10) {
+                                display: none;
+                            }
+                            
+                            /* Column width allocations - 9 visible columns */
+                            #result_list th:nth-child(1),
+                            #result_list td:nth-child(1) {
+                                width: 3%;  /* Checkbox */
+                                min-width: 30px;
+                                text-align: center;
+                            }
+                            
+                            #result_list th:nth-child(2),
+                            #result_list td:nth-child(2) {
+                                width: 5%;  /* Profile pic */
+                                min-width: 50px;
+                                text-align: center;
+                            }
+                            
+                            #result_list th:nth-child(3),
+                            #result_list td:nth-child(3) {
+                                width: 12%;  /* Username */
+                            }
+                            
+                            #result_list th:nth-child(4),
+                            #result_list td:nth-child(4) {
+                                width: 18%;  /* Email */
+                            }
+                            
+                            #result_list th:nth-child(5),
+                            #result_list td:nth-child(5) {
+                                width: 8%;  /* First name */
+                            }
+                            
+                            #result_list th:nth-child(6),
+                            #result_list td:nth-child(6) {
+                                width: 8%;  /* Last name */
+                            }
+                            
+                            #result_list th:nth-child(7),
+                            #result_list td:nth-child(7) {
+                                width: 10%;  /* Status */
+                                min-width: 70px;
+                            }
+                            
+                            #result_list th:nth-child(8),
+                            #result_list td:nth-child(8) {
+                                width: 8%;  /* Email verified */
+                                min-width: 40px;
+                                text-align: center;
+                            }
+                            
+                            #result_list th:nth-child(9),
+                            #result_list td:nth-child(9) {
+                                width: 28%;  /* Joined - takes up remaining space */
+                                min-width: 80px;
+                            }
+                            
+                            /* Column 10 is hidden */
+                            
+                            #result_list th:last-child,
+                            #result_list td:last-child {
+                                padding-right: 8px !important;
+                            }
+                            
+                            .results {
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                width: 100% !important;
+                            }
+                            
+                            .action-toggle {
+                                cursor: pointer;
+                            }
+                            
+                            th.action-checkbox-column {
+                                width: 3%;
+                                text-align: center;
+                                vertical-align: middle;
+                            }
+                        </style>
+                        {% result_list cl %}
+                    </div>
+
+                    <div style="margin: 15px 0; width: 100%;">
+                        {% pagination cl %}
+                    </div>
+                </div>
+
+                <!-- Collapsible filter sidebar -->
+                <div id="filter-sidebar" style="width: 280px; display: none;">
+                    {% if cl.has_filters %}
+                        <div style="background: var(--body-bg); border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden;">
+                            <h2 style="background: var(--darkened-bg); color: var(--body-fg); padding: 10px; margin: 0; font-size: 1rem; display: flex; align-items: center; justify-content: space-between;">
+                                <span>⚙️ Filters</span>
+                                <button onclick="toggleFilters()" style="background: none; border: none; color: var(--body-fg); cursor: pointer; font-size: 1.2rem;">✖</button>
+                            </h2>
+                            <div style="padding: 10px;">
+                                {% for spec in cl.filter_specs %}
+                                    {% admin_list_filter cl spec %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- =============================================================================
+         JAVASCRIPT
+         Handles filter sidebar toggle and action counter functionality
+    ============================================================================= -->
+    <script>
+        function toggleFilters() {
+            const filterSidebar = document.getElementById('filter-sidebar');
+            const mainTable = document.getElementById('main-table');
+            const toggleButton = document.getElementById('toggle-filters');
+            
+            if (filterSidebar.style.display === 'none') {
+                filterSidebar.style.display = 'block';
+                mainTable.style.flex = '1';
+                mainTable.style.width = 'calc(100% - 300px)';
+                toggleButton.innerHTML = '<span>🔼</span> Hide Filters';
+            } else {
+                filterSidebar.style.display = 'none';
+                mainTable.style.flex = '1';
+                mainTable.style.width = '100%';
+                toggleButton.innerHTML = '<span>🔽</span> Show Filters';
+            }
+        }
+
+        // Action counter initialization
+        (function() {
+            function initActions() {
+                const selectAll = document.getElementById('action-toggle');
+                const checkboxes = document.querySelectorAll('.action-select');
+                const counter = document.querySelector('.action-counter');
+                
+                if (!selectAll || !checkboxes.length || !counter) {
+                    setTimeout(initActions, 300);
+                    return;
+                }
+                
+                const totalCount = checkboxes.length;
+                
+                function updateCounter() {
+                    const checkedCount = Array.from(document.querySelectorAll('.action-select')).filter(cb => cb.checked).length;
+                    counter.textContent = `${checkedCount} of ${totalCount} selected`;
+                    
+                    if (checkedCount === totalCount) {
+                        selectAll.checked = true;
+                        selectAll.indeterminate = false;
+                    } else if (checkedCount === 0) {
+                        selectAll.checked = false;
+                        selectAll.indeterminate = false;
+                    } else {
+                        selectAll.checked = false;
+                        selectAll.indeterminate = true;
+                    }
+                }
+                
+                const newSelectAll = selectAll.cloneNode(true);
+                selectAll.parentNode.replaceChild(newSelectAll, selectAll);
+                const updatedSelectAll = document.getElementById('action-toggle');
+                
+                updatedSelectAll.addEventListener('change', function(e) {
+                    document.querySelectorAll('.action-select').forEach(cb => {
+                        cb.checked = e.target.checked;
+                    });
+                    updateCounter();
+                });
+                
+                checkboxes.forEach((checkbox) => {
+                    checkbox.addEventListener('change', updateCounter);
+                });
+                
+                updateCounter();
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(initActions, 300);
+                });
+            } else {
+                setTimeout(initActions, 300);
+            }
+        })();
+    </script>
+{% endblock %}

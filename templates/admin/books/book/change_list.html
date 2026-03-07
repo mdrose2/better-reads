@@ -1,0 +1,235 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block search %}
+    <!-- EMPTY: This removes the original search bar from its default location -->
+{% endblock %}
+
+{% block object-tools %}
+    <!-- OVERRIDE: This removes the default "Add Book" button -->
+{% endblock %}
+
+{% block content %}
+    <div id="content-main" style="display: flex; flex-direction: column; width: 100%;">
+        <!-- Custom search bar at the top-->
+        <div style="margin-bottom: 20px; padding: 15px; background: var(--body-bg); border: 1px solid var(--border-color); border-radius: 4px; width: 100%; box-sizing: border-box;">
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                    <span>🔍</span> Search Books
+                </h3>
+                <div style="flex: 1; min-width: 300px;">
+                    <form id="changelist-search-custom" method="get" style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <input type="text" size="40" name="q" value="{{ cl.query }}" id="searchbar" 
+                                   placeholder="Search by title, author, publisher, or ISBN..."
+                                   style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <button type="submit" class="button" style="padding: 8px 15px;">Search</button>
+                        {% if cl.query %}
+                            <a href="?" class="button" style="padding: 8px 15px; text-decoration: none;">Clear</a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CHANGELIST FORM -->
+        <form id="changelist-form" method="post"{% if cl.formset and cl.formset.is_multipart %} enctype="multipart/form-data"{% endif %} novalidate>
+            {% csrf_token %}
+            
+            <!-- Action bar with actions dropdown and filter toggle -->
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <!-- Actions dropdown -->
+                    {% block actions %}
+                        <div class="actions">
+                            {% for field in action_form %}{% if field.label %}<label>{{ field.label }} {% endif %}{{ field }}{% if field.label %}</label>{% endif %}{% endfor %}
+                            <button type="submit" class="button" title="Run the selected action" name="index" value="{{ action_index|default:0 }}">Go</button>
+                            {% if actions_selection_counter %}
+                                <span class="action-counter" data-actions-icnt="{{ cl.result_list|length }}">{{ selection_note }}</span>
+                            {% endif %}
+                        </div>
+                    {% endblock %}
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <!-- Filter toggle button -->
+                    <button id="toggle-filters" type="button" class="button" style="background: #6c757d;" onclick="toggleFilters()">
+                        <span>🔽</span> Show Filters
+                    </button>
+                    <a href="{% url 'admin:books_book_add' %}" class="addlink" style="display: inline-flex; align-items: center; gap: 5px;">
+                        <span>➕</span> Add Book
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main content area with table and filters -->
+            <div style="display: flex; gap: 20px; width: 100%;">
+                <!-- Main table area -->
+                <div id="main-table" style="flex: 1; min-width: 0; width: 100%;">
+                    <!-- Date hierarchy -->
+                    {% block date_hierarchy %}
+                        {% if cl.date_hierarchy %}{% date_hierarchy cl %}{% endif %}
+                    {% endblock %}
+
+                    <!-- Top pagination -->
+                    <div style="margin: 15px 0; display: flex; justify-content: flex-end; width: 100%;">
+                        {% pagination cl %}
+                    </div>
+
+                    <!-- The main result list -->
+                    <div style="background: var(--body-bg); border: 1px solid var(--border-color); border-radius: 4px; overflow-x: auto; width: 100%;">
+                        <style>
+                            /* Keep only essential table layout fixes */
+                            #result_list {
+                                width: 100% !important;
+                                table-layout: fixed !important;
+                                border-collapse: collapse;
+                            }
+                            
+                            /* Column width allocations */
+                            #result_list th:nth-child(1),
+                            #result_list td:nth-child(1) {
+                                width: 5%;  /* Checkbox */
+                            }
+                            
+                            #result_list th:nth-child(2),
+                            #result_list td:nth-child(2) {
+                                width: 8%;  /* Cover */
+                            }
+                            
+                            #result_list th:nth-child(3),
+                            #result_list td:nth-child(3) {
+                                width: 30%;  /* Title */
+                            }
+                            
+                            #result_list th:nth-child(4),
+                            #result_list td:nth-child(4) {
+                                width: 22%;  /* Authors */
+                            }
+                            
+                            #result_list th:nth-child(5),
+                            #result_list td:nth-child(5) {
+                                width: 8%;  /* Year */
+                            }
+                            
+                            #result_list th:nth-child(6),
+                            #result_list td:nth-child(6) {
+                                width: 17%;  /* Rating with details */
+                            }
+                            
+                            #result_list th:nth-child(7),
+                            #result_list td:nth-child(7) {
+                                width: 10%;  /* Source badge */
+                            }
+                        </style>
+                        {% result_list cl %}
+                    </div>
+
+                    <!-- Bottom pagination -->
+                    <div style="margin: 15px 0; width: 100%;">
+                        {% pagination cl %}
+                    </div>
+                </div>
+
+                <!-- Filter sidebar - collapsible -->
+                <div id="filter-sidebar" style="width: 280px; display: none;">
+                    {% if cl.has_filters %}
+                        <div style="background: var(--body-bg); border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden;">
+                            <h2 style="background: var(--darkened-bg); color: var(--body-fg); padding: 10px; margin: 0; font-size: 1rem; display: flex; align-items: center; justify-content: space-between;">
+                                <span>⚙️ Filters</span>
+                                <button onclick="toggleFilters()" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem;">✖</button>
+                            </h2>
+                            <div style="padding: 10px;">
+                                {% for spec in cl.filter_specs %}
+                                    {% admin_list_filter cl spec %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- JavaScript for filter toggle and action counter -->
+    <script>
+        function toggleFilters() {
+            const filterSidebar = document.getElementById('filter-sidebar');
+            const mainTable = document.getElementById('main-table');
+            const toggleButton = document.getElementById('toggle-filters');
+            
+            if (filterSidebar.style.display === 'none') {
+                filterSidebar.style.display = 'block';
+                mainTable.style.flex = '1';
+                mainTable.style.width = 'calc(100% - 300px)';
+                toggleButton.innerHTML = '<span>🔼</span> Hide Filters';
+            } else {
+                filterSidebar.style.display = 'none';
+                mainTable.style.flex = '1';
+                mainTable.style.width = '100%';
+                toggleButton.innerHTML = '<span>🔽</span> Show Filters';
+            }
+        }
+
+        // Action counter functionality
+        (function() {
+            function initActions() {
+                const selectAll = document.getElementById('action-toggle');
+                const checkboxes = document.querySelectorAll('.action-select');
+                const counter = document.querySelector('.action-counter');
+                
+                if (!selectAll || !checkboxes.length || !counter) {
+                    // Try again in a moment if elements aren't ready
+                    setTimeout(initActions, 300);
+                    return;
+                }
+                
+                const totalCount = checkboxes.length;
+                
+                function updateCounter() {
+                    const checkedCount = Array.from(document.querySelectorAll('.action-select')).filter(cb => cb.checked).length;
+                    counter.textContent = `${checkedCount} of ${totalCount} selected`;
+                    
+                    if (checkedCount === totalCount) {
+                        selectAll.checked = true;
+                        selectAll.indeterminate = false;
+                    } else if (checkedCount === 0) {
+                        selectAll.checked = false;
+                        selectAll.indeterminate = false;
+                    } else {
+                        selectAll.checked = false;
+                        selectAll.indeterminate = true;
+                    }
+                }
+                
+                // Clone and replace select all to remove existing handlers
+                const newSelectAll = selectAll.cloneNode(true);
+                selectAll.parentNode.replaceChild(newSelectAll, selectAll);
+                const updatedSelectAll = document.getElementById('action-toggle');
+                
+                updatedSelectAll.addEventListener('change', function(e) {
+                    document.querySelectorAll('.action-select').forEach(cb => {
+                        cb.checked = e.target.checked;
+                    });
+                    updateCounter();
+                });
+                
+                // Add handlers to individual checkboxes
+                checkboxes.forEach((checkbox) => {
+                    checkbox.addEventListener('change', updateCounter);
+                });
+                
+                updateCounter();
+            }
+            
+            // Run initialization when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(initActions, 300);
+                });
+            } else {
+                setTimeout(initActions, 300);
+            }
+        })();
+    </script>
+{% endblock %}

@@ -1,0 +1,361 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+<!-- =============================================================================
+     ADMIN STYLES
+============================================================================= -->
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/changelists.css' %}">
+{% endblock %}
+
+<!-- =============================================================================
+     SEARCH BAR OVERRIDE
+============================================================================= -->
+{% block search %}
+    <!-- Intentionally empty -->
+{% endblock %}
+
+<!-- =============================================================================
+     OBJECT TOOLS OVERRIDE
+============================================================================= -->
+{% block object-tools %}
+    <!-- Intentionally empty -->
+{% endblock %}
+
+<!-- =============================================================================
+     MAIN CONTENT
+============================================================================= -->
+{% block content %}
+    <div id="content-main" style="display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 0; padding: 0;">
+        <!-- =========================================================================
+             SEARCH BAR
+        ========================================================================= -->
+        <div style="margin-bottom: 20px; padding: 20px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <h3 style="margin: 0; color: #28a745; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.4rem;">🔍</span> Search Reviews
+                </h3>
+                <div style="flex: 1; min-width: 300px;">
+                    <form id="changelist-search-custom" method="get" style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <input type="text" size="40" name="q" value="{{ cl.query }}" id="searchbar" 
+                                   style="width: 100%; padding: 10px 15px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; box-sizing: border-box;"
+                                   placeholder="Search by book title, user, or review title..."
+                                   onfocus="this.style.borderColor='#28a745'"
+                                   onblur="this.style.borderColor='#dee2e6'">
+                        </div>
+                        <button type="submit" class="button" style="background: #28a745; color: white; border: none; padding: 10px 25px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;"
+                                onmouseover="this.style.background='#218838'"
+                                onmouseout="this.style.background='#28a745'">
+                            <span style="margin-right: 5px;">🔍</span> Search
+                        </button>
+                        {% if cl.query %}
+                            <a href="?" style="background: #6c757d; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; transition: background 0.2s; display: inline-block;"
+                               onmouseover="this.style.background='#5a6268'"
+                               onmouseout="this.style.background='#6c757d'">
+                                ✖ Clear
+                            </a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================================
+             ACTIVE FILTERS
+        ========================================================================= -->
+        {% if cl.has_filters and cl.active_filters %}
+        <div style="margin-bottom: 15px; padding: 10px 15px; background: #e7f3ff; border: 1px solid #91c9f9; border-radius: 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="font-weight: 600; color: #0b5e8a;">🔍 Active filters:</span>
+            {% for spec in cl.filter_specs %}
+                {% with spec.used_parameters.items as used_params %}
+                    {% if used_params %}
+                        {% for key, value in used_params %}
+                            <span style="background: white; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; border: 1px solid #91c9f9;">
+                                {{ spec.title }}: {{ value }}
+                                <a href="{{ spec.get_query_string|safe }}" style="margin-left: 6px; color: #dc3545; text-decoration: none; font-weight: bold;" title="Remove filter">✕</a>
+                            </span>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+            <a href="?" style="background: #dc3545; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; text-decoration: none; margin-left: auto;">Clear all filters</a>
+        </div>
+        {% endif %}
+
+        <!-- =========================================================================
+             CHANGELIST FORM
+        ========================================================================= -->
+        <form id="changelist-form" method="post"{% if cl.formset and cl.formset.is_multipart %} enctype="multipart/form-data"{% endif %} novalidate style="width: 100%;">
+            {% csrf_token %}
+            
+            <!-- Action bar with dropdown and filter toggle -->
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    {% block actions %}
+                        <div class="actions">
+                            {% for field in action_form %}{% if field.label %}<label>{{ field.label }} {% endif %}{{ field }}{% if field.label %}</label>{% endif %}{% endfor %}
+                            <button type="submit" class="button" title="Run the selected action" name="index" value="{{ action_index|default:0 }}">Go</button>
+                            {% if actions_selection_counter %}
+                                <span class="action-counter" data-actions-icnt="{{ cl.result_list|length }}">{{ selection_note }}</span>
+                            {% endif %}
+                        </div>
+                    {% endblock %}
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="toggle-filters" type="button" style="background: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px;"
+                            onclick="toggleFilters()">
+                        <span>🔽</span> Show Filters
+                    </button>
+                    <a href="{% url 'admin:reviews_review_add' %}" class="addlink" style="background: #28a745; color: white; padding: 8px 15px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
+                        <span>➕</span> Add Review
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main content area with table and filter sidebar -->
+            <div style="display: flex; gap: 20px; width: 100%;">
+                <!-- Table container -->
+                <div id="main-table" style="flex: 1; min-width: 0; width: 100%;">
+                    {% block date_hierarchy %}
+                        {% if cl.date_hierarchy %}{% date_hierarchy cl %}{% endif %}
+                    {% endblock %}
+
+                    <div style="margin: 15px 0; display: flex; justify-content: flex-end; width: 100%;">
+                        {% pagination cl %}
+                    </div>
+
+                    <!-- Result table with fixed column widths -->
+                    <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; overflow-x: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.05); width: 100%; margin: 0; padding: 0;">
+                        <style>
+                            #result_list {
+                                width: 100% !important;
+                                table-layout: fixed !important;
+                                border-collapse: collapse !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                            }
+                            
+                            #result_list thead th {
+                                padding: 12px 8px !important;
+                                text-align: left;
+                                border-bottom: 2px solid #dee2e6;
+                                background: #f8f9fa;
+                                font-weight: 600;
+                                color: #495057;
+                                white-space: nowrap;
+                            }
+                            
+                            #result_list tbody td {
+                                padding: 12px 8px !important;
+                                border-bottom: 1px solid #dee2e6;
+                                vertical-align: middle;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                            
+                            /* Column width allocations */
+                            #result_list th:nth-child(1),
+                            #result_list td:nth-child(1) {
+                                width: 3% !important;
+                                min-width: 30px;
+                                text-align: center;
+                            }
+                            
+                            #result_list th:nth-child(2),
+                            #result_list td:nth-child(2) {
+                                width: 3% !important;
+                                min-width: 40px;
+                                text-align: center;
+                            }
+                            
+                            #result_list th:nth-child(3),
+                            #result_list td:nth-child(3) {
+                                width: 20% !important;
+                            }
+                            
+                            #result_list th:nth-child(4),
+                            #result_list td:nth-child(4) {
+                                width: 18% !important;
+                            }
+                            
+                            #result_list th:nth-child(5),
+                            #result_list td:nth-child(5) {
+                                width: 15% !important;
+                            }
+                            
+                            #result_list th:nth-child(6),
+                            #result_list td:nth-child(6) {
+                                width: 8% !important;
+                                text-align: center;
+                            }
+                            
+                            #result_list th:nth-child(7),
+                            #result_list td:nth-child(7) {
+                                width: 8% !important;
+                                text-align: center;
+                            }
+                            
+                            #result_list th:nth-child(8),
+                            #result_list td:nth-child(8) {
+                                width: 5% !important;
+                                min-width: 40px;
+                                text-align: center;
+                            }
+                            
+                            #result_list th:nth-child(9),
+                            #result_list td:nth-child(9) {
+                                width: 20% !important;
+                                white-space: normal !important;
+                                overflow: visible !important;
+                                text-overflow: clip !important;
+                                word-wrap: break-word !important;
+                            }
+                            
+                            #result_list th:last-child,
+                            #result_list td:last-child {
+                                padding-right: 8px !important;
+                            }
+                            
+                            .results {
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                width: 100% !important;
+                            }
+                            
+                            .action-toggle {
+                                cursor: pointer;
+                            }
+                            
+                            th.action-checkbox-column {
+                                width: 3% !important;
+                                text-align: center;
+                                vertical-align: middle;
+                            }
+                        </style>
+                        {% result_list cl %}
+                    </div>
+
+                    <div style="margin: 15px 0; width: 100%;">
+                        {% pagination cl %}
+                    </div>
+                </div>
+
+                <!-- Collapsible filter sidebar -->
+                <div id="filter-sidebar" style="width: 280px; display: none;">
+                    {% if cl.has_filters %}
+                        <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h2 style="background: #28a745; color: white; padding: 15px; margin: 0; font-size: 1.1rem; display: flex; align-items: center; justify-content: space-between;">
+                                <span>⚙️ Filters</span>
+                                <button onclick="toggleFilters()" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem;">✖</button>
+                            </h2>
+                            <div style="padding: 15px;">
+                                {% for spec in cl.filter_specs %}
+                                    {% admin_list_filter cl spec %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- =============================================================================
+        JAVASCRIPT
+    ============================================================================= -->
+    <script>
+        function toggleFilters() {
+            const filterSidebar = document.getElementById('filter-sidebar');
+            const mainTable = document.getElementById('main-table');
+            const toggleButton = document.getElementById('toggle-filters');
+            
+            if (filterSidebar.style.display === 'none') {
+                filterSidebar.style.display = 'block';
+                mainTable.style.flex = '1';
+                mainTable.style.width = 'calc(100% - 300px)';
+                toggleButton.innerHTML = '<span>🔼</span> Hide Filters';
+            } else {
+                filterSidebar.style.display = 'none';
+                mainTable.style.flex = '1';
+                mainTable.style.width = '100%';
+                toggleButton.innerHTML = '<span>🔽</span> Show Filters';
+            }
+        }
+
+        (function() {
+            function initActions() {
+                console.log('Initializing actions...');
+                
+                const selectAll = document.getElementById('action-toggle');
+                const checkboxes = document.querySelectorAll('.action-select');
+                const counter = document.querySelector('.action-counter');
+                
+                if (!selectAll || !checkboxes.length || !counter) {
+                    console.warn('Required elements not found');
+                    return;
+                }
+                
+                const totalCount = checkboxes.length;
+                
+                function updateCounter() {
+                    const checkedCount = Array.from(document.querySelectorAll('.action-select')).filter(cb => cb.checked).length;
+                    
+                    counter.textContent = `${checkedCount} of ${totalCount} selected`;
+                    
+                    // Update select all state
+                    if (checkedCount === totalCount) {
+                        selectAll.checked = true;
+                        selectAll.indeterminate = false;
+                    } else if (checkedCount === 0) {
+                        selectAll.checked = false;
+                        selectAll.indeterminate = false;
+                    } else {
+                        selectAll.checked = false;
+                        selectAll.indeterminate = true;
+                    }
+                    
+                    console.log(`Counter updated: ${checkedCount} of ${totalCount}`);
+                }
+                
+                // Remove existing event listeners by cloning select all
+                const newSelectAll = selectAll.cloneNode(true);
+                selectAll.parentNode.replaceChild(newSelectAll, selectAll);
+                const updatedSelectAll = document.getElementById('action-toggle');
+                
+                // Add new select all handler
+                updatedSelectAll.addEventListener('change', function(e) {
+                    console.log('Select all clicked:', e.target.checked);
+                    // Update all checkboxes
+                    document.querySelectorAll('.action-select').forEach(cb => {
+                        cb.checked = e.target.checked;
+                    });
+                    updateCounter();
+                });
+                
+                // Add handlers to individual checkboxes WITHOUT cloning them
+                checkboxes.forEach((checkbox, index) => {
+                    checkbox.addEventListener('change', function(e) {
+                        console.log(`Checkbox ${index} changed:`, e.target.checked);
+                        updateCounter();
+                    });
+                });
+                
+                // Initial update
+                updateCounter();
+                console.log('Actions initialized successfully');
+            }
+            
+            // Run initialization when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(initActions, 300);
+                });
+            } else {
+                setTimeout(initActions, 300);
+            }
+        })();
+    </script>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends "admin/delete_confirmation.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    /* Better Reads Green Theme for Delete Confirmation */
+    #header {
+      background: #28a745 !important;
+      color: white;
+    }
+    
+    #branding h1 {
+      color: white !important;
+      font-weight: 600;
+    }
+    
+    #branding h1 a {
+      color: white !important;
+      text-decoration: none;
+    }
+    
+    #user-tools a {
+      color: white !important;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+    }
+    
+    div.breadcrumbs {
+      background: #218838 !important;
+    }
+    
+    /* Delete page specific styling */
+    .delete-confirmation {
+      max-width: 800px;
+      margin: 20px auto;
+    }
+    
+    .delete-confirmation .module {
+      border: 1px solid #dee2e6;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .delete-confirmation .module h2 {
+      background: #28a745;
+      color: white;
+      padding: 12px 15px;
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    .delete-confirmation .module .form-row {
+      padding: 15px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    
+    .delete-confirmation .module .form-row:last-child {
+      border-bottom: none;
+    }
+    
+    .delete-confirmation .module .form-row input[type=text] {
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      padding: 8px 12px;
+      width: 100%;
+      max-width: 400px;
+    }
+    
+    .delete-confirmation .module .form-row input[type=text]:focus {
+      border-color: #28a745;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
+    }
+    
+    /* Button styling */
+    .delete-confirmation .submit-row {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+      display: flex;
+      gap: 15px;
+      justify-content: flex-end;
+    }
+    
+    .delete-confirmation .submit-row input[type=submit] {
+      background: #28a745;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .delete-confirmation .submit-row input[type=submit]:hover {
+      background: #218838;
+    }
+    
+    .delete-confirmation .submit-row .cancel-link {
+      background: #6c757d;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .delete-confirmation .submit-row .cancel-link:hover {
+      background: #5a6268;
+    }
+    
+    /* Danger button for delete */
+    .delete-confirmation .submit-row input[type=submit].deletelink {
+      background: #dc3545;
+    }
+    
+    .delete-confirmation .submit-row input[type=submit].deletelink:hover {
+      background: #c82333;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main" class="delete-confirmation">
+    <!-- Custom branded header -->
+    <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.02);">
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="background: #28a745; width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+          <span style="font-size: 1.8rem;">⚠️</span>
+        </div>
+        <div>
+          <h2 style="margin: 0; color: #28a745; font-size: 1.5rem; font-weight: 600;">
+            {% if perms_lacking or protected %}
+              {% blocktranslate with escaped_object=object %}Deleting {{ object_name }} '{{ escaped_object }}'{% endblocktranslate %}
+            {% else %}
+              {% blocktranslate with escaped_object=object %}Are you sure?{% endblocktranslate %}
+            {% endif %}
+          </h2>
+          <p style="margin: 5px 0 0 0; color: #6c757d;">
+            {% if perms_lacking %}
+              {% blocktranslate %}Deleting this {{ object_name }} would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:{% endblocktranslate %}
+            {% elif protected %}
+              {% blocktranslate %}Deleting this {{ object_name }} would require deleting the following protected related objects:{% endblocktranslate %}
+            {% else %}
+              {% blocktranslate %}Are you sure you want to delete this {{ object_name }}? All of the following related items will be deleted:{% endblocktranslate %}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {{ block.super }}
+  </div>
+{% endblock %}

@@ -1,0 +1,335 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static "admin/css/changelists.css" %}">
+  {% if cl.formset %}
+    <link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">
+  {% endif %}
+  {% if cl.formset or action_form %}
+    <script src="{% url 'admin:jsi18n' %}"></script>
+  {% endif %}
+  {{ media.css }}
+  <style>
+    /* Custom Better Reads Admin Styling */
+    #header {
+      background: #28a745;
+      color: white;
+    }
+    
+    #branding h1 {
+      color: white;
+      font-weight: 600;
+    }
+    
+    #branding h1 a {
+      color: white;
+      text-decoration: none;
+    }
+    
+    #user-tools a {
+      color: white;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+    }
+    
+    .module h2, .module caption {
+      background: #28a745;
+    }
+    
+    div.breadcrumbs {
+      background: #218838;
+    }
+    
+    .button, input[type=submit], input[type=button], .submit-row input, a.button {
+      background: #28a745;
+    }
+    
+    .button:hover, input[type=submit]:hover, input[type=button]:hover {
+      background: #218838;
+    }
+    
+    .button.default, input[type=submit].default, .submit-row input.default {
+      background: #28a745;
+    }
+    
+    .button.default:hover, input[type=submit].default:hover {
+      background: #218838;
+    }
+    
+    /* Custom table styling */
+    #result_list {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    #result_list thead th {
+      background: #f8f9fa;
+      padding: 12px;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 2px solid #28a745;
+    }
+    
+    #result_list tbody td {
+      padding: 12px;
+      border-bottom: 1px solid #dee2e6;
+      vertical-align: middle;
+    }
+    
+    #result_list tbody tr:hover {
+      background: #f8f9fa;
+    }
+    
+    /* Action bar styling */
+    .actions {
+      padding: 10px;
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    
+    .actions select {
+      padding: 5px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      min-width: 200px;
+    }
+    
+    .actions button {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 5px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+    
+    .actions button:hover {
+      background: #218838;
+    }
+    
+    /* Filter styling */
+    #changelist-filter {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    #changelist-filter h2 {
+      background: #28a745;
+      color: white;
+      padding: 15px;
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    
+    #changelist-filter h3 {
+      margin: 15px 0 10px 0;
+      padding: 0 15px;
+      color: #495057;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    
+    #changelist-filter ul {
+      margin: 0 0 15px 0;
+      padding: 0 15px;
+    }
+    
+    #changelist-filter li {
+      list-style-type: none;
+      margin-bottom: 5px;
+    }
+    
+    #changelist-filter a {
+      color: #28a745;
+      text-decoration: none;
+    }
+    
+    #changelist-filter a:hover {
+      text-decoration: underline;
+    }
+    
+    #changelist-filter li.selected a {
+      color: #218838;
+      font-weight: 600;
+    }
+    
+    /* Search bar styling */
+    #toolbar {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    
+    #toolbar form input[type=text] {
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      padding: 8px 12px;
+      width: 300px;
+      max-width: 100%;
+    }
+    
+    #toolbar form input[type=text]:focus {
+      border-color: #28a745;
+      outline: none;
+    }
+    
+    #toolbar form input[type=submit] {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    
+    #toolbar form input[type=submit]:hover {
+      background: #218838;
+    }
+    
+    /* Pagination styling */
+    .paginator {
+      margin: 15px 0;
+      padding: 10px;
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      text-align: right;
+    }
+    
+    .paginator a {
+      color: #28a745;
+      text-decoration: none;
+      padding: 5px 10px;
+    }
+    
+    .paginator a:hover {
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+    
+    .paginator .this-page {
+      background: #28a745;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+    }
+    
+    /* Date hierarchy styling */
+    .date-hierarchy {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    
+    .date-hierarchy a {
+      color: #28a745;
+      text-decoration: none;
+    }
+    
+    .date-hierarchy a:hover {
+      text-decoration: underline;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main" style="width: 100%;">
+    {% if cl.formset and cl.formset.errors %}
+      <p class="errornote">
+        {% blocktranslate count counter=cl.formset.total_error_count %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
+      </p>
+      {{ cl.formset.non_form_errors }}
+    {% endif %}
+    
+    <!-- Custom branded header -->
+    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">
+      <h2 style="margin: 0; color: #28a745; display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 1.5rem;">📚</span>
+        {{ cl.opts.verbose_name_plural|capfirst }}
+      </h2>
+    </div>
+    
+    <div class="module{% if cl.has_filters %} filtered{% endif %}" id="changelist">
+      <div class="changelist-form-container">
+        {% block search %}{% search_form cl %}{% endblock %}
+        
+        {% block date_hierarchy %}{% if cl.date_hierarchy %}{% date_hierarchy cl %}{% endif %}{% endblock %}
+        
+        <form id="changelist-form" method="post"{% if cl.formset and cl.formset.is_multipart %} enctype="multipart/form-data"{% endif %} novalidate>{% csrf_token %}
+          {% if cl.formset %}
+            <div>{{ cl.formset.management_form }}</div>
+          {% endif %}
+          
+          <div class="actions" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              {% block actions %}
+                <div class="actions">
+                  {% for field in action_form %}{% if field.label %}<label>{{ field.label }} {% endif %}{{ field }}{% if field.label %}</label>{% endif %}{% endfor %}
+                  <button type="submit" class="button" title="{% trans 'Run the selected action' %}" name="index" value="{{ action_index|default:0 }}">{% trans "Go" %}</button>
+                  {% if actions_selection_counter %}
+                      <span class="action-counter" data-actions-icnt="{{ cl.result_list|length }}">{{ selection_note }}</span>
+                  {% endif %}
+                </div>
+              {% endblock %}
+            </div>
+            
+            <!-- Object count -->
+            <div style="background: #e9ecef; padding: 5px 15px; border-radius: 20px; font-weight: 600; color: #495057;">
+              {{ cl.result_count }} {% if cl.result_count == 1 %}{{ cl.opts.verbose_name }}{% else %}{{ cl.opts.verbose_name_plural }}{% endif %}
+            </div>
+          </div>
+          
+          {% block result_list %}
+            {% result_list cl %}
+          {% endblock %}
+          
+          {% block pagination %}{% pagination cl %}{% endblock %}
+        </form>
+      </div>
+      
+      {% block filters %}
+        {% if cl.has_filters %}
+          <div id="changelist-filter">
+            <h2>{% trans 'Filter' %}</h2>
+            {% for spec in cl.filter_specs %}{% admin_list_filter cl spec %}{% endfor %}
+          </div>
+        {% endif %}
+      {% endblock %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block extrajs %}
+  {{ block.super }}
+  {{ media.js }}
+  <script>
+    // Add any custom JavaScript here
+    document.addEventListener('DOMContentLoaded', function() {
+      // Style the action dropdown
+      const actionSelect = document.querySelector('select[name="action"]');
+      if (actionSelect) {
+        actionSelect.style.padding = '5px';
+        actionSelect.style.border = '1px solid #ced4da';
+        actionSelect.style.borderRadius = '4px';
+        actionSelect.style.minWidth = '200px';
+      }
+      
+      // Style search input
+      const searchInput = document.getElementById('searchbar');
+      if (searchInput) {
+        searchInput.placeholder = 'Search...';
+      }
+    });
+  </script>
+{% endblock %}

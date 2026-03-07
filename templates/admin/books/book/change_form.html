@@ -1,0 +1,122 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{# ========================================================================= #}
+{# JAVASCRIPT ENHANCEMENTS                                                   #}
+{# ========================================================================= #}
+{% block footer %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      
+      // =====================================================================
+      // Character counter for description field
+      // =====================================================================
+      const descField = document.querySelector('textarea[name="description"]');
+      if (descField) {
+        const counter = document.createElement('div');
+        counter.className = 'char-counter';
+        descField.parentElement.appendChild(counter);
+        
+        const updateCounter = () => {
+          const len = descField.value.length;
+          counter.textContent = `${len} characters`;
+          
+          if (len > 1000) {
+            counter.classList.add('warning');
+            counter.classList.remove('danger');
+          } else if (len > 2000) {
+            counter.classList.add('danger');
+            counter.classList.remove('warning');
+          } else {
+            counter.classList.remove('warning', 'danger');
+          }
+        };
+        
+        descField.addEventListener('input', updateCounter);
+        updateCounter();
+      }
+      
+      // =====================================================================
+      // ISBN field formatting (digits only)
+      // =====================================================================
+      const isbn13Field = document.querySelector('input[name="isbn_13"]');
+      if (isbn13Field) {
+        isbn13Field.addEventListener('input', function(e) {
+          let value = this.value.replace(/[^\d]/g, '');
+          if (value.length > 13) value = value.slice(0, 13);
+          this.value = value;
+        });
+      }
+      
+      const isbn10Field = document.querySelector('input[name="isbn_10"]');
+      if (isbn10Field) {
+        isbn10Field.addEventListener('input', function(e) {
+          let value = this.value.replace(/[^\dXx]/g, '').toUpperCase();
+          if (value.length > 10) value = value.slice(0, 10);
+          this.value = value;
+        });
+      }
+      
+      // =====================================================================
+      // Cover image URL preview
+      // =====================================================================
+      const coverUrlField = document.querySelector('input[name="cover_image_url"]');
+      const thumbnailField = document.querySelector('input[name="thumbnail_url"]');
+      
+      const addPreview = (field, previewId) => {
+        if (!field) return;
+        
+        const preview = document.createElement('img');
+        preview.className = 'cover-preview';
+        preview.style.display = 'none';
+        preview.id = previewId;
+        field.parentElement.appendChild(preview);
+        
+        field.addEventListener('blur', function() {
+          const url = this.value.trim();
+          if (url) {
+            preview.src = url;
+            preview.style.display = url ? 'block' : 'none';
+            preview.onerror = () => {
+              preview.style.display = 'none';
+              const errorMsg = document.createElement('small');
+              errorMsg.style.color = '#dc3545';
+              errorMsg.textContent = 'Invalid image URL';
+              field.parentElement.appendChild(errorMsg);
+              setTimeout(() => errorMsg.remove(), 3000);
+            };
+          } else {
+            preview.style.display = 'none';
+          }
+        });
+      };
+      
+      addPreview(coverUrlField, 'cover-preview');
+      addPreview(thumbnailField, 'thumbnail-preview');
+      
+      // =====================================================================
+      // Page count validation
+      // =====================================================================
+      const pageCountField = document.querySelector('input[name="page_count"]');
+      if (pageCountField) {
+        pageCountField.addEventListener('input', function() {
+          let value = parseInt(this.value);
+          if (isNaN(value) || value < 1) {
+            this.setCustomValidity('Page count must be at least 1');
+          } else {
+            this.setCustomValidity('');
+          }
+        });
+      }
+      
+      // =====================================================================
+      // Published date placeholder
+      // =====================================================================
+      const dateField = document.querySelector('input[name="published_date"]');
+      if (dateField) {
+        dateField.placeholder = 'YYYY-MM-DD';
+      }
+    });
+  </script>
+{% endblock %}
